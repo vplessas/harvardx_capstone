@@ -63,5 +63,3 @@ rm(dl, ratings, movies, test_index, temp, movielens, removed)
  load("rdata/edx.rda")
  load("rdata/validation.rda")
  
- 
- 
