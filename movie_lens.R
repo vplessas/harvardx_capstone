@@ -35,6 +35,7 @@ movies <- as.data.frame(movies) %>% mutate(movieId = as.numeric(movieId),
                                            genres = as.character(genres))
 
 
+
 movielens <- left_join(ratings, movies, by = "movieId")
 
 # Validation set will be 10% of MovieLens data
@@ -53,3 +54,14 @@ removed <- anti_join(temp, validation)
 edx <- rbind(edx, removed)
 
 rm(dl, ratings, movies, test_index, temp, movielens, removed)
+
+# save and reload data files
+
+ ## save(edx, file = "rdata/edx.rda")
+ ## save(validation, file = "rdata/validation.rda")
+ 
+ load("rdata/edx.rda")
+ load("rdata/validation.rda")
+ 
+ 
+ 
