@@ -601,7 +601,7 @@ data.frame(Method = "Just the Average",
              "RMSE Validated",
              round(RMSE_validated, 5),
              format(round(RMSE_validated - RMSE_avg, 5), scientific = F)
-           ))
+           )) %>% knitr::kable()
 
 data.frame(Method = "Netflix Objective",
            RMSE = "0.86490",
@@ -609,6 +609,6 @@ data.frame(Method = "Netflix Objective",
              "RMSE Validated",
              round(RMSE_validated, 5),
              format(round(RMSE_validated - netflix_objective, 5), scientific = F)
-           ))
+           )) %>% knitr::kable()
 
-# End of Script
+### End of Script ###
