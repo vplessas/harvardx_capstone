@@ -1,6 +1,6 @@
 # Create edx set, validation set (final hold-out test set). ----
 
-# This Script follows RStudio's outline format do please use the menu on the right hand side of your window for easy navigation.
+# PLEASE NOTE: This Script follows RStudio's outline format do please use the menu on the right hand side of your window for easy navigation.
 
 ## Install and load required packagies and libraries ----
 # Note: this process could take a couple of minutes
@@ -59,8 +59,8 @@ movies <-
     genres = as.character(genres)
   )
 
-
 movielens <- left_join(ratings, movies, by = "movieId")
+
 
 ## Creating the validation dataset. It will only be used a the end of the script to test the model's performance. ----
 
@@ -95,7 +95,8 @@ rm(dl, ratings, movies, test_index, temp, movielens, removed)
 load("rdata/edx.rda")
 load("rdata/validation.rda")
 
-
+### Set number of digits ----
+options(digits = 7)
 
 ### Extract Year of Release and Year of Rating from timestamp ----
 
@@ -239,10 +240,12 @@ edx_train <- rbind(edx_train, removed)
 ### Remove temporary files to tidy environment ----
 rm(edx_test_index, temp, removed)
 
+
 ## Define a loess function (RMSE) ----
 RMSE <- function(true_ratings, predicted_ratings) {
   sqrt(mean((true_ratings - predicted_ratings) ^ 2))
 }
+
 
 ## Construct the most basic model - Just the average ----
 
@@ -250,10 +253,248 @@ RMSE <- function(true_ratings, predicted_ratings) {
 edx_train_mu <- mean(edx_train$rating)
 
 ### Measure the RMSE of the edx_train average vs the edx_test dataset
-RMSE_1 <-RMSE(edx_test$rating, edx_train_mu)
+RMSE_avg <-RMSE(edx_test$rating, edx_train_mu)
 
 ### Add the results to a dataframe ----
-results <- tibble(Method = "Just the Average", RMSE = RMSE_1)
+results <- data.frame(Method = "Just the Average", RMSE = RMSE_avg)
 
+
+## Calculate movie effect (b_m) ----
+
+### movie effect (b_i) ----
+movie_b_m <- edx_train %>%
+  group_by(movieId) %>%
+  summarise(b_m = mean(rating - edx_train_mu))
+
+### Predict ratings - adjust for movie effects ----
+predicted_b_m <- edx_train_mu + edx_test %>%
+  left_join(movie_b_m, by = "movieId") %>%
+  pull(b_m)
+
+### ensure the predictions don't exceed the rating limits ----
+predicted_b_m[predicted_b_m<0.5] <- 0.5
+predicted_b_m[predicted_b_m>5] <- 5
+
+### Calculate RMSE based on movie effects ----
+RMSE_b_m <- RMSE(predicted_b_m, edx_test$rating)
+
+### Append results to dataframe ----
+results <-  rbind(results, data.frame(Method = "Movie Effect",
+                                           RMSE = RMSE_b_m))
+
+## Calculate user effect (b_u) ----
+
+### user effect ----
+user_b_u <- edx_train %>%
+  left_join(movie_b_m, by = "movieId") %>%
+  group_by(userId) %>%
+  summarise(b_u = mean(rating - edx_train_mu - b_m))
+
+### Predict ratings - adjust for movie and user effects ----
+predicted_b_u <- edx_test %>%
+  left_join(movie_b_m, by="movieId") %>%
+  left_join(user_b_u, by="userId") %>%
+  mutate(pred = edx_train_mu + b_m + b_u) %>%
+  pull(pred)
+
+
+### ensure the predictions don't exceed the rating limits ----
+predicted_b_u[predicted_b_u<0.5] <- 0.5
+predicted_b_u[predicted_b_u>5] <- 5
+
+### Calculate RMSE based on user effects ----
+RMSE_b_u <- RMSE(predicted_b_u, edx_test$rating)
+
+### Append results to dataframe ----
+results <-  rbind(results, data.frame(Method = "Users Effect",
+                                      RMSE = RMSE_b_u))
+
+
+## Calculate genre effect (b_g) ----
+
+### genre effect ----
+genre_b_g <- edx_train %>%
+  left_join(movie_b_m, by = "movieId") %>%
+  left_join(user_b_u, by = "userId") %>%
+  group_by(genres) %>%
+  summarise(b_g = mean(rating - edx_train_mu - b_m - b_u))
+
+### Predict ratings - adjust for movie, user and genre effects ----
+predicted_b_g <- edx_test %>%
+  left_join(movie_b_m, by = "movieId") %>%
+  left_join(user_b_u, by = "userId") %>%
+  left_join(genre_b_g, by = "genres") %>%
+  mutate(pred = edx_train_mu + b_m + b_u + b_g) %>%
+  pull(pred)
+
+### ensure the predictions don't exceed the rating limits ----
+predicted_b_g[predicted_b_g<0.5] <- 0.5
+predicted_b_g[predicted_b_g>5] <- 5
+
+### Calculate RMSE based on genre effects ----
+RMSE_b_g <- RMSE(predicted_b_g, edx_test$rating)
+
+### Append results to dataframe ----
+results <-  rbind(results, data.frame(Method = "Genre Effect",
+                                      RMSE = RMSE_b_g))
+
+## Calculate year of release effect (b_y) ----
+
+### release year effect ----
+year_b_y <- edx_train %>%
+  left_join(movie_b_m, by = "movieId") %>%
+  left_join(user_b_u, by = "userId") %>%
+  left_join(genre_b_g, by = "genres") %>%
+  group_by(release_year) %>%
+  summarise(b_y = mean(rating - edx_train_mu - b_m - b_u - b_g))
+
+### Predict ratings - adjust for movie, user, genre and year effects ----
+predicted_b_y <- edx_test %>%
+  left_join(movie_b_m, by = "movieId") %>%
+  left_join(user_b_u, by = "userId") %>%
+  left_join(genre_b_g, by = "genres") %>%
+  left_join(year_b_y, by = "release_year") %>%
+  mutate(pred = edx_train_mu + b_m + b_u + b_g + b_y) %>%
+  pull(pred)
+
+### ensure the predictions don't exceed the rating limits ----
+predicted_b_y[predicted_b_y<0.5] <- 0.5
+predicted_b_y[predicted_b_y>5] <- 5
+
+### Calculate RMSE based on year effects ----
+RMSE_b_y <- RMSE(predicted_b_y, edx_test$rating)
+
+### Append results to dataframe ----
+results <-  rbind(results, data.frame(Method = "Release Year Effect",
+                                      RMSE = RMSE_b_y))
+
+## Calculate year rated effect (b_r) ----
+
+### year rated effect ----
+year_b_r <- edx_train %>%
+  left_join(movie_b_m, by = "movieId") %>%
+  left_join(user_b_u, by = "userId") %>%
+  left_join(genre_b_g, by = "genres") %>%
+  left_join(year_b_y, by = "release_year") %>%
+  group_by(year_rated) %>%
+  summarise(b_r = mean(rating - edx_train_mu - b_m - b_u - b_g - b_y))
+
+### Predict ratings - adjust for movie, user, genre, year and review date effects ----
+predicted_b_r <- edx_test %>%
+  left_join(movie_b_m, by = "movieId") %>%
+  left_join(user_b_u, by = "userId") %>%
+  left_join(genre_b_g, by = "genres") %>%
+  left_join(year_b_y, by = "release_year") %>%
+  left_join(year_b_r, by = "year_rated") %>%
+  mutate(pred = edx_train_mu + b_m + b_u + b_g + b_y + b_r) %>%
+  pull(pred)
+
+### ensure the predictions don't exceed the rating limits ----
+predicted_b_r[predicted_b_r<0.5] <- 0.5
+predicted_b_r[predicted_b_r>5] <- 5
+
+### Calculate RMSE based on review date effects model ----
+RMSE_b_r <- RMSE(predicted_b_r, edx_test$rating)
+
+### Append results to dataframe ----
+results <-  rbind(results, data.frame(Method = "Year Rated Effect",
+                                      RMSE = RMSE_b_r))
+
+
+# Regularisation ----
+
+## Sequence of lambdas ranging from 1 to 3 with 0.1 increments ----
+lambdas <- seq(1, 3, 0.1)
+
+## Programmatically regularise model, predict ratings and calculate RMSE for each value of lambda ----
+# This took a couple of minutes on a laptop with 8GB RAM.
+rmses <- sapply(lambdas, function(l){
+  b_m <- edx_train %>%
+    group_by(movieId) %>%
+    summarise(b_m = sum(rating - edx_train_mu)/(n()+l))
+  b_u <- edx_train %>%
+    left_join(b_m, by="movieId") %>%
+    group_by(userId) %>%
+    summarise(b_u = sum(rating - b_m - edx_train_mu)/(n()+l))
+  b_g <- edx_train %>%
+    left_join(b_m, by="movieId") %>%
+    left_join(b_u, by="userId") %>%
+    group_by(genres) %>%
+    summarise(b_g = sum(rating - b_m - b_u - edx_train_mu)/(n()+l))
+  b_y <- edx_train %>%
+    left_join(b_m, by="movieId") %>%
+    left_join(b_u, by="userId") %>%
+    left_join(b_g, by="genres") %>%
+    group_by(release_year) %>%
+    summarise(b_y = sum(rating - b_m - b_u - b_g - edx_train_mu)/(n()+l))
+  b_r <- edx_train %>%
+    left_join(b_m, by="movieId") %>%
+    left_join(b_u, by="userId") %>%
+    left_join(b_g, by="genres") %>%
+    left_join(b_y, by="release_year") %>%
+    group_by(year_rated) %>%
+    summarise(b_r = sum(rating - b_m - b_u - b_g - edx_train_mu)/(n()+l))
+  predicted_ratings <- edx_test %>%
+    left_join(b_m, by="movieId") %>%
+    left_join(b_u, by="userId") %>%
+    left_join(b_g, by="genres") %>%
+    left_join(b_y, by="release_year") %>%
+    left_join(b_r, by="year_rated") %>%
+    mutate(pred = edx_train_mu + b_m + b_u + b_g + b_y + b_r) %>%
+    pull(pred)
+  return(RMSE(predicted_ratings, edx_test$rating))
+})
+
+### Choose and visualisr optimal lambda ----
+lambda <- lambdas[which.min(rmses)]
+plot(lambdas, rmses, main = "Lambda Optimisation")
+
+### Minimum RMSE achieved ----
+RMSE_reg <- min(rmses)
+
+### Append results to dataframe ----
+results <-  rbind(results, data.frame(Method = "Regularised RMSE",
+                                      RMSE = RMSE_reg))
+
+## Model all effects with the full edx dataset, regularised with optimal lambda ----
+b_m <- edx %>%
+  group_by(movieId) %>%
+  summarise(b_m = sum(rating - edx_mu_hat)/(n()+lambda))
+
+b_u <- edx %>%
+  left_join(b_m, by="movieId") %>%
+  group_by(userId) %>%
+  summarise(b_u = sum(rating - b_m - edx_mu_hat)/(n()+lambda))
+
+b_g <- edx %>%
+  left_join(b_m, by="movieId") %>%
+  left_join(b_u, by="userId") %>%
+  group_by(genres) %>%
+  summarise(b_g = sum(rating - b_m - b_u - edx_mu_hat)/(n()+lambda))
+
+b_y <- edx %>%
+  left_join(b_m, by="movieId") %>%
+  left_join(b_u, by="userId") %>%
+  left_join(b_g, by="genres") %>%
+  group_by(release_year) %>%
+  summarise(b_y = sum(rating - b_m - b_u - b_g - edx_mu_hat)/(n()+lambda))
+
+b_r <- edx %>%
+  left_join(b_m, by="movieId") %>%
+  left_join(b_u, by="userId") %>%
+  left_join(b_g, by="genres") %>%
+  left_join(b_y, by="release_year") %>%
+  group_by(year_rated) %>%
+  summarise(b_r = sum(rating - b_m - b_u - b_g - b_y - edx_mu_hat)/(n()+lambda))
+
+# Predict ratings in validation set using final model
+predicted_ratings <- validation %>%
+  left_join(b_m, by="movieId") %>%
+  left_join(b_u, by="userId") %>%
+  left_join(b_g, by="genres") %>%
+  left_join(b_y, by="release_year") %>%
+  left_join(b_r, by="year_rated") %>%
+  mutate(pred = edx_mu_hat + b_m + b_u + b_g + b_y + b_r) %>%
+  pull(pred)
 
 
