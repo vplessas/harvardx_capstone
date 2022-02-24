@@ -2,7 +2,7 @@
 
 # PLEASE NOTE: This Script follows RStudio's outline format do please use the menu on the right hand side of your window for easy navigation.
 
-## Install and load required packagies and libraries ----
+## Install and load required packages and libraries ----
 # Note: this process could take a couple of minutes
 
 if (!require(tidyverse))
@@ -15,12 +15,16 @@ if (!require(lubridate))
   install.packages("lubridate", repos = "http://cran.us.r-project.org")
 if (!require(stringr))
   install.packages("stringr", repos = "http://cran.us.r-project.org")
+if (!require(knitr))
+  install.packages("knitr", repos = "http://cran.us.r-project.org")
+
 
 library(tidyverse)
 library(caret)
 library(data.table)
 library(lubridate)
 library(stringr)
+library(knitr)
 
 # MovieLens 10M dataset:
 # https://grouplens.org/datasets/movielens/10m/
@@ -88,18 +92,24 @@ edx <- rbind(edx, removed)
 
 rm(dl, ratings, movies, test_index, temp, movielens, removed)
 
-# save and reload data files
-
-## save(edx, file = "rdata/edx.rda")
-## save(validation, file = "rdata/validation.rda")
-
-load("rdata/edx.rda")
-load("rdata/validation.rda")
 
 ### Set number of digits ----
 options(digits = 7)
 
-### Extract Year of Release and Year of Rating from timestamp ----
+
+load("rdata/edx.rda")
+load("rdata/validation.rda")
+
+
+
+# Exploratory Analysis ----
+
+## Structure review ----
+str(edx)
+
+
+## Add Extra Temporal Dimensions ----
+
 edx <-
   edx %>% mutate(
     release_year = as.numeric(str_sub(
@@ -117,13 +127,6 @@ validation <-
     year_rated = year(as_datetime(timestamp)),
     month_rated = month(as_datetime(timestamp), label = TRUE)
   )
-
-
-
-# Exploratory Analysis ----
-
-## Structure review ----
-glimpse(edx)
 
 
 ## Calculate edx average rating ----
@@ -209,9 +212,6 @@ edx_genre %>% group_by(genres) %>%
 
 # Methodology ----
 
-## Set Netflix Target RMSE ----
-netflix_objective <- 0.86490
-
 ## Partition edx into train and test sets ----
 
 ### Create train set and test sets from edx ----
@@ -239,6 +239,10 @@ edx_train <- rbind(edx_train, removed)
 rm(edx_test_index, temp, removed)
 
 
+## Set Netflix Target RMSE ----
+target_rmse <- 0.8712
+
+
 ## Define a loess function (RMSE) ----
 RMSE <- function(true_ratings, predicted_ratings) {
   sqrt(mean((true_ratings - predicted_ratings) ^ 2))
@@ -255,7 +259,7 @@ RMSE_avg <- RMSE(edx_test$rating, edx_train_mu)
 
 ### Add the training_results to a dataframe ----
 training_results <-
-  data.frame(Method = "Netflix Objective", RMSE = netflix_objective) %>%
+  data.frame(Method = "Target RMSE", RMSE = target_rmse) %>%
   rbind(c("Just the Average", round(RMSE_avg, 5)))
 
 
@@ -603,12 +607,12 @@ data.frame(Method = "Just the Average",
              format(round(RMSE_validated - RMSE_avg, 5), scientific = F)
            )) %>% knitr::kable()
 
-data.frame(Method = "Netflix Objective",
-           RMSE = "0.86490",
+data.frame(Method = "Target RMSE",
+           RMSE = target_rmse,
            Difference = "-") %>% rbind(c(
              "RMSE Validated",
              round(RMSE_validated, 5),
-             format(round(RMSE_validated - netflix_objective, 5), scientific = F)
+             format(round(RMSE_validated - target_rmse, 5), scientific = F)
            )) %>% knitr::kable()
 
 ### End of Script ###
