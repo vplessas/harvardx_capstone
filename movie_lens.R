@@ -97,11 +97,6 @@ rm(dl, ratings, movies, test_index, temp, movielens, removed)
 options(digits = 7)
 
 
-load("rdata/edx.rda")
-load("rdata/validation.rda")
-
-
-
 # Exploratory Analysis ----
 
 ## Structure review ----

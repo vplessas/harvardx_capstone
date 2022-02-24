@@ -43,7 +43,6 @@ library(data.table)
 library(lubridate)
 library(stringr)
 library(knitr)
-library(kableExtra)
 
 # Set number of digits
 options(digits = 7)
@@ -90,7 +89,7 @@ movies <-
 colnames(movies) <- c("movieId", "title", "genres")
 
 
-## Data type transofrmations ----
+## Data type transformations ----
 
 # if using R 3.6 or earlier:
 # movies <- as.data.frame(movies) %>% mutate(movieId = as.numeric(levels(movieId))[movieId],
@@ -135,6 +134,8 @@ rm(dl, ratings, movies, test_index, temp, movielens, removed)
 
 ```
 
+
+\newpage
 # Exploratory Analysis
 The structure of the data set is shown below. The edx dataset is a `r class(edx)` consisting of `r format(nrow(edx),big.mark=",",scientific=F)` rows and `r format(ncol(edx),big.mark=",",scientific=F)` columns, with ratings provided by a total of `r format(n_distinct(edx$userId), big.mark=",",scientific=F)` unique users for a total of `r format(n_distinct(edx$movieId),big.mark=",",scientific=F)` unique movies. If each unique user had provided a rating for each unique rating the dataset would include a total of approximately `r round((n_distinct(edx$userId)*n_distinct(edx$movieId))/1e+06)` million ratings. Clearly, therefore, this dataset includes many missing values, i.e. every user has not rated every movie.
 
@@ -182,7 +183,7 @@ edx_mu <- mean(edx$rating)
 
 ## Overall Ratings
 
-Figure 1 shows the distribution of the ratings, with the mean rating `r round(edx_mu 2)` indicated by the blue dashed line. We can see that users tentd to rate movies more positively than negatively. They also prefer to give whole star ratings than half star ones.
+Figure 1 shows the distribution of the ratings, with the mean rating `r round(edx_mu, 2)` indicated by the blue dashed line. We can see that users tend to rate movies more positively than negatively. They also prefer to give whole star ratings than half star ones.
 
 ```{r rating_distribution , fig.cap= "Overall Ratings Distribution"}
 edx %>% ggplot(aes(rating)) +
@@ -286,6 +287,7 @@ edx_genre %>% group_by(genres) %>%
 
 ```
 
+\newpage
 # Methodology
 
 As mentioned already in the introduction, the validation dataset was reserved for the final hold-out test, the edx dataset was split into train (90%) and test (10%) sets which were used to train and test the algorithm in development. This is important to allow for cross-validation and refinement of the final model without the risk of over-training. Other methods for cross-validation include K-fold cross validation and bootstrapping but were not utilised here (see @irizarry_2020 for further information).
@@ -331,7 +333,7 @@ target_rmse <- 0.8712
 
 ## Calculating the error loss
 
-The residual mean square error (RMSE) is defined as the standard deviation of the residuals (prediction errors) where residuals are a measure of spread of data points from the regression line (Glen 2020). In the formula shown below, $y_{u,i}$ is defined as the actual rating provided by user $i$ for movie $u$, $\hat{y}_{u,i}$  is the predicted rating for the same, and N is the total number of user/movie combinations.
+The residual mean square error (RMSE) is defined as the standard deviation of the residuals (prediction errors) where residuals are a measure of spread of data points from the regression line (@Glen_2020). In the formula shown below, $y_{u,i}$ is defined as the actual rating provided by user $i$ for movie $u$, $\hat{y}_{u,i}$  is the predicted rating for the same, and N is the total number of user/movie combinations.
 
 $$RMSE = \sqrt{\frac{1}{N}\sum_{u,i}\left(\hat{y}_{u,i}-y_{u,i}\right)^2}$$  
 ```{r Define_loess_function, include=FALSE}
@@ -347,7 +349,7 @@ RMSE <- function(true_ratings, predicted_ratings) {
 
 The simplest algorithm for predicting ratings is to apply the same rating to all movies. Here, the actual rating for movie $m$ by user $u$, $Y_{u,m}$, is the sum of this "true" rating, $\mu$, plus $\epsilon_{u,m}$, the independent errors sampled for the same distribution.  
 
-$$Y_{u,i}=\mu+\epsilon_{u,m}$$
+$$Y_{u,m}=\mu+\epsilon_{u,m}$$
 ```{r Just the average, include=FALSE}
 ### Calculate the edx_train set average 
 edx_train_mu <- mean(edx_train$rating)
@@ -363,7 +365,7 @@ training_results <-
   data.frame(Method = "Target Objective", RMSE = target_rmse) %>%
   rbind(c("Just the Average", round(RMSE_avg, 5)))
 
-training_results %>% kable(align = 'lrr', booktabs = T)
+training_results %>% kable()
 ```
 
 ### Movie Bias
@@ -371,7 +373,7 @@ training_results %>% kable(align = 'lrr', booktabs = T)
 The next step in our algorithm development is to calculate and adjust for movie bias. As not all movies have received the same rating, by accounting for this effect $b_m$ should improve the accuracy of our algorithm.
 We can define the models as :
 
-$$Y_{u,i}=\mu+b_m+\epsilon_{u,m}$$  
+$$Y_{u,m}=\mu+b_m+\epsilon_{u,m}$$  
 
 Due to the size of the dataset we cannot use a linear model to explain this relationship. Instead we'll use the least squares estimate of the movie effects $\hat{b}_m$ which can be derived from the average of $Y_{u,m}-\hat{\mu}$ for each movie $m$ .
 
@@ -417,7 +419,7 @@ movie_b_m %>%
 
 The exploratory analysis also showed that different users rated movies differently so further refinements were made to the algorithm to adjust for user effects ($b_u$). The least square estimates of the user effect, $\hat{b}_u$ was calculated using the formulas shown below.
 
-$$Y_{u,i}=\mu+b_m+b_u+\epsilon_{u,m}$$
+$$Y_{u,m}=\mu+b_m+b_u+\epsilon_{u,m}$$
 
 $$\hat{b}_{u}=mean\left(\hat{y}_{u,m}-\hat{\mu}-\hat{b}_m\right)$$  
 
@@ -722,6 +724,7 @@ training_results <-
 training_results %>% knitr::kable()
 ```
 
+\newpage
 # Final Validation
 
 Now that our algorithm development has been completed, the final step is to train the algorithm using the entire edx dataset and then to predict ratings using the validation dataset which we will be using for the first time in our analysis.
@@ -777,6 +780,7 @@ RMSE_validated <- RMSE(validation$rating, predicted_ratings)
 
 ```
 
+\newpage
 
 # Results
 
@@ -808,10 +812,9 @@ data.frame(Method = "Target RMSE",
 
 ```
 
-# Conclusion
 
 \newpage
-# **Conclusions**
+# Conclusion
 
 The objective of this project was to develop a recommendation system using the MovieLens 10M dataset that predicted ratings with a residual mean square error of less than 0.8712 and an improvemnt of minimum 10% over the naive algorithm.. Adjusting for a number of estimated biases introduced by the movie, user, genre, release year and review date, and then regularising these in order to constrain the variability of effect sizes, met the project objective goals yielding a model with an RMSE of `r round(RMSE_reg,5)`.  This was confirmed in a final test using the previously unused validation dataset, with an RMSE of `r round(RMSE_validated, 5)`.
 
@@ -820,4 +823,4 @@ Although the algorithm developed here met the project objective goals it still i
 
 \newpage
 
-# **References**
+# References
