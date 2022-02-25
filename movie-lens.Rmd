@@ -9,9 +9,7 @@ output:
     toc: yes
     fig_caption: yes
     includes:
-      in_header: preamble.tex
   html_document: default
-bibliography: references.bib
 fontsize: 11pt
 include-before: '`\newpage{}`{=latex}'
 urlcolor: blue
@@ -20,7 +18,7 @@ urlcolor: blue
 ```{r setup, include=FALSE}
 # Run knitr chunk options
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE,
-                      fig.align="center", out.width="70%")
+                      fig.align="center", out.width="80%")
 
 # Install Necessary Packages
 if (!require(tidyverse))
@@ -53,25 +51,25 @@ options(digits = 7)
 
 # Introduction
 
-Recommendation systems are popular applications of machine learning utilised by companies of digital nature today  [@schrage_2017]. Netflix is an example of a company which uses these systems to understand their customers better and to target them with media content more effectively [@schrage_2018]. In 2009, Netflix awarded a $1M prize to the team of data scientists who had successfully met the challenge of improving their movie recommendation algorithm by 10% [@lohr_2009; @koren2009].
+Recommendation systems are popular applications of machine learning utilised extensively by digital companies [[1](https://hbr.org/2017/08/great-digital-companies-build-great-recommendation-engines)]. Netflix is an example of a company which uses these systems to understand their customers better and to target them with media content more effectively [[2](https://hbr.org/2018/06/how-marketers-can-get-more-value-from-their-recommendation-engines)]. In 2009, Netflix awarded a $1M prize to the team of data scientists who had successfully met the challenge of improving their movie recommendation algorithm by 10% [[3](https://bits.blogs.nytimes.com/2009/09/21/netflix-awards-1-million-prize-and-starts-a-new-contest)].
 
 This analysis is part of HarvardX's Capstone Project for the Data Science Professional Certificate. The objective was to develop a recommendation system using the MovieLens dataset which consists of 10 million movie ratings. The goals  were for the final algorithm to:
 
 a) Improve predictions by reducing the the root mean square error (RMSE) by 10% or more over the naive algorithm (Just the Average) and
-b) Predict ratings with a root mean square error (RMSE) of less 0.8712 (Winning Score of the netflix challenge) versus the actual ratings included in the validation set.
+b) Predict ratings with a root mean square error (RMSE) of less 0.8712 (Winning Score of the Netflix challenge) versus the actual ratings included in the validation set.
 
-To facilitate this work, the dataset was split into a training set (edx) and a final hold-out test set (validation) using code provided by the course organisers. As instructed we have not used the validation dataset until the very end of our analysis where we used it to calculate our final RMSE against that hold-out set. Further more we've partitioned the edx dataset between train and test sets (edx_train and edx_test accordingly) to allow us to build our algorithm and test our progress as we proceeded.
+To facilitate this work, the dataset was split into a training set (edx) and a final hold-out test set (validation) using code provided by the course organisers. As instructed we have not used the validation dataset until the very end of our analysis where we used it to calculate our final RMSE against that hold-out set.
+Furthermore we've partitioned the edx dataset between train and test sets (edx_train and edx_test accordingly) to allow us to build our algorithm and test our progress as we proceeded.
 
 This report starts by presenting the exploratory analysis used to understand the edx dataset and explore the interactions and distributions of the variables present. It proceeds with presenting the methodology used to develop and test the algorithm and discusses the findings after each iteration of the development process. It concludes with presenting and discusisng the final results as well as any limitations identified and recommendations for future work to be carried out.
 
-```{r partition-data, eval=FALSE}}
-
+```{r partition-data, include=FALSE}
 # MovieLens 10M dataset:
 # https://grouplens.org/datasets/movielens/10m/
 # http://files.grouplens.org/datasets/movielens/ml-10m.zip
 
 
-## Download and convert dataset ----
+## Download and convert dataset
 dl <- tempfile()
 download.file("http://files.grouplens.org/datasets/movielens/ml-10m.zip",
               dl)
@@ -89,7 +87,7 @@ movies <-
 colnames(movies) <- c("movieId", "title", "genres")
 
 
-## Data type transformations ----
+## Data type transformations
 
 # if using R 3.6 or earlier:
 # movies <- as.data.frame(movies) %>% mutate(movieId = as.numeric(levels(movieId))[movieId],
@@ -107,9 +105,9 @@ movies <-
 movielens <- left_join(ratings, movies, by = "movieId")
 
 
-## Creating the validation dataset. It will only be used a the end of the script to test the model's performance. ----
+## Creating the validation dataset. It will only be used a the end of the script to test the model's performance.
 
-### Validation set will be 10% of MovieLens data ----
+### Validation set will be 10% of MovieLens data 
 set.seed(1, sample.kind = "Rounding") # if using R 3.5 or earlier, use `set.seed(1)`
 test_index <-
   createDataPartition(
@@ -121,12 +119,12 @@ test_index <-
 edx <- movielens[-test_index, ]
 temp <- movielens[test_index, ]
 
-### Make sure userId and movieId in validation set are also in edx set ----
+### Make sure userId and movieId in validation set are also in edx set
 validation <- temp %>%
   semi_join(edx, by = "movieId") %>%
   semi_join(edx, by = "userId")
 
-### Add rows removed from validation set back into edx set and remove unnecessary variables ----
+### Add rows removed from validation set back into edx set and remove unnecessary variables 
 removed <- anti_join(temp, validation)
 edx <- rbind(edx, removed)
 
@@ -139,7 +137,7 @@ rm(dl, ratings, movies, test_index, temp, movielens, removed)
 # Exploratory Analysis
 The structure of the data set is shown below. The edx dataset is a `r class(edx)` consisting of `r format(nrow(edx),big.mark=",",scientific=F)` rows and `r format(ncol(edx),big.mark=",",scientific=F)` columns, with ratings provided by a total of `r format(n_distinct(edx$userId), big.mark=",",scientific=F)` unique users for a total of `r format(n_distinct(edx$movieId),big.mark=",",scientific=F)` unique movies. If each unique user had provided a rating for each unique rating the dataset would include a total of approximately `r round((n_distinct(edx$userId)*n_distinct(edx$movieId))/1e+06)` million ratings. Clearly, therefore, this dataset includes many missing values, i.e. every user has not rated every movie.
 
-```{r dataset structure}
+```{r dataset structure, echo=FALSE}
 
 cat(str(edx), sep = "\n")
 
@@ -156,7 +154,6 @@ edx <-
       title, start = -5, end = -2
     )),
     year_rated = year(as_datetime(timestamp)),
-    month_rated = month(as_datetime(timestamp), label = TRUE)
   )
 
 validation <-
@@ -165,18 +162,17 @@ validation <-
       title, start = -5, end = -2
     )),
     year_rated = year(as_datetime(timestamp)),
-    month_rated = month(as_datetime(timestamp), label = TRUE)
   )
 ```
 
 
-```{r dataset structure}
+```{r new dataset structure, echo=FALSE}
 
 cat(str(edx), sep = "\n")
 
 ```
 
-```{r Calculate edx average ,include=FALSE}
+```{r Calculate edx average, include=FALSE}
 
 edx_mu <- mean(edx$rating)
 ```
@@ -185,7 +181,7 @@ edx_mu <- mean(edx$rating)
 
 Figure 1 shows the distribution of the ratings, with the mean rating `r round(edx_mu, 2)` indicated by the blue dashed line. We can see that users tend to rate movies more positively than negatively. They also prefer to give whole star ratings than half star ones.
 
-```{r rating_distribution , fig.cap= "Overall Ratings Distribution"}
+```{r rating_distribution , fig.cap= "Overall Ratings Distribution", echo=FALSE}
 edx %>% ggplot(aes(rating)) +
   geom_histogram(bins = 10, color = I("black")) +
   geom_vline(xintercept = edx_mu,
@@ -197,23 +193,66 @@ edx %>% ggplot(aes(rating)) +
 
 ```
 
-## User Average Ratings
+## Movies
 
-User data shows a pattern of some users being more generous in the way they assessed movies (see Figure 2). Some users contributed many more ratings than other users (Figure 5). For example, one user provided a total of `r edx %>% count(userId) %>% arrange(desc(n)) %>% top_n(1) %>% pull(n)` ratings whereas as many as `r edx %>% filter(userId<10) %>% count() %>% pull(n)` provided fewer than 10 movie ratings each. This analysis identifies a clear user effect (or bias) which, if adjusted for, may further improve the accuracy of a movie recommendation system.
+Some movies are naturally more highly rated than others (see Figure 2). Further analysis indicates significant variation in the number of ratings received by each movie (see Figure 3). With a certain number of movies receives the majotiry of ratings while others being rated only a few time. There's clearly a movie effect present in the data and it's the first effect we'll try and capture into our model.
 
-```{r mean_dist_user, fig.cap= "Average Rating by User Distribution"}
+```{r average_rating_by movie ,fig.cap= "Average Rating by Movie" ,echo=FALSE}
+edx %>% 
+  group_by(movieId) %>%
+  summarise(mean_rating = mean(rating)) %>%
+  ggplot(aes(mean_rating)) +
+  geom_histogram(bins = 10, color = I("black")) +
+  geom_vline(xintercept = edx_mu,
+             linetype = "dashed",
+             colour = "blue") +
+  ylab("Number of Movies") +
+  xlab("Average Rating")
+
+```
+
+```{r number_rating_by movie ,fig.cap= "Number of ratings by Movie" ,echo=FALSE}
+edx %>% 
+  count(movieId) %>%
+  ggplot(aes(n)) +
+  geom_histogram(bins = 50, color = I("black")) +
+  scale_x_log10()+
+  ggtitle("Ratings Distribution") +
+  ylab("Number of Ratings") +
+  xlab("Movies")
+
+```
+
+## Users
+
+User data shows a pattern of some users being more generous in the way they assessed movies (see Figure 4). Some users contributed many more ratings than other users (Figure 5). For example, one user provided a total of `r edx %>% count(userId) %>% arrange(desc(n)) %>% top_n(1) %>% pull(n)` ratings whereas as many as `r edx %>% filter(userId<10) %>% count() %>% pull(n)` provided fewer than 10 movie ratings each. This indicates a clear user effect which, if adjusted for, may further improve the accuracy of a movie recommendation system.
+
+```{r mean_dist_user, fig.cap= "Average Rating by User Distribution", echo=FALSE}
 edx %>% group_by(userId) %>%
   summarise(mean_rating = mean(rating)) %>%
   ggplot(aes(mean_rating)) +
-  geom_histogram(bins = 50, color = I("black")) +
-  labs(x = "Mean rating", y = "Number of users") 
+  geom_histogram(bins = 10, color = I("black")) +
+  geom_vline(xintercept = edx_mu,
+             linetype = "dashed",
+             colour = "blue") +
+  labs(x = "Average rating", y = "Number of users") 
 ```
 
+```{r number_rating_by_user,fig.cap= "Number of ratings by User" ,echo=FALSE}
+edx %>% 
+  count(userId) %>%
+  ggplot(aes(n)) +
+  geom_histogram(bins = 50, color = I("black")) +
+  scale_x_log10()+
+  ggtitle("Ratings Distribution") +
+  ylab("Number of Ratings") +
+  xlab("Users")
 
-## Release Year Average Ratings
+```
 
-The year the movie was released reveals an interesting trend (see Figure 3). There is a noticeable increase in ratings for movies released between the 30s and 50s. Perhaps even more important is the wide spread 
-of data points away from the distribution's mean up until the 1970s. This effect doesn't continue in the years after where we see the majority of the datapoints converging towards the mean and fall within the 95% confidence interval. For that reason we will make the assumption that the Release year has an effect on user ratings which we will try to capture in our model.
+## Release Year 
+
+The year the movie was released reveals an interesting trend (see Figure 6). There is a noticeable increase in ratings for movies released between the 30s and 50s. Perhaps even more important is the wide spread of data points away from the distribution's mean up until the 1970s. This effect doesn't continue in the years after where we see the majority of the datapoints converging towards the mean and fall within the 95% confidence interval. For that reason we will make the assumption that the Release year has an effect on user ratings which we will try to capture in our model.
 
 ```{r release_year_ratings, echo=FALSE, fig.cap="Average Rating Curve based on Year of Release"}
 
@@ -230,11 +269,11 @@ edx %>%
 
 ```
 
-## Year of Review Average Ratings
+## Year of Review 
 
-The year each movie was reviewed (see Figure 4) does not exhibit the strong seasonal effect which we observed in the release year graph. However it shows a 10 year downwards trend starting from 1995 and stabilising around 2005 and afer that it's pretty much flat. We believe that the year of review would not have a large effect on the user rating prediction algorithm, however we will capture it in our model and measure it's impact on the RMSE.
+The year each movie was reviewed (see Figure 7) does not exhibit the strong seasonal effect which we observed in the release year graph. However it shows a 10 year downwards trend starting from 1995 and stabilising around 2005 and afer that it's pretty much flat. We believe that the year of review would not have a large effect on the user rating prediction algorithm, however we will capture it in our model and measure it's impact on the RMSE.
 
-```{r release_year_ratings, echo=FALSE, fig.cap="Average Rating Curve based on Year of Review"}
+```{r review_year_ratings, echo=FALSE, fig.cap="Average Rating Curve based on Year of Review"}
 
 edx %>%
   group_by(year_rated) %>%
@@ -250,7 +289,7 @@ edx %>%
 
 ```
 
-## Movie Genre Average Ratings
+## Movie Genre
 
 The edx dataset contains a "genres" field which indicates the genre each movie belongs to. The majority of the movie to genre relationships are one to one, meaning that each movie belongs to a single genre. However there many instances where one movie belongs to multiple genres.There is a total of `r n_distinct(edx$genres)` unique combinations in the dataset.
 To explore the ratings distributions by genre in our dataset, we seperated those multi-genre combinations into individual rows with a single genre. Due to the size of our data set this operation was not possible to complete with processing power of a normal laptop. Hence we've taken a random sample of 1 million rows to analyse.
@@ -262,10 +301,10 @@ edx_genre <- edx %>%
   separate_rows(genres, sep = "\\|")
 ```
 
-To ensure we review genres with significant number of ratings, we've further filtered our sample dataset to genres with over 10,000 ratings. We can infer from this chart that there's an indication of a trend in how different genres are rated (see Figure 5). While the majority of genres tend to gravitate towards the edx dataset's average rating `r round(edx_mu 2)` , others tend to be closer to the opposing ends of the distribution. Horror movies seem to be rated poorly by users while Film-Noir, Documentaries and War movies tend to receive quite high ratings. Perhaps it is worth mentioning the size of the error bars for those high rated genres which seems to be larger when compared to the bulk of the genres converging closer to the mean. This could indicated a higher variability in the star ratings for these genres.
+To ensure we review genres with significant number of ratings, we've further filtered our sample dataset to genres with over 10,000 ratings. We can infer from this chart that there's an indication of a trend in how different genres are rated (see Figure 8). While the majority of genres tend to gravitate towards the edx dataset's average rating `r round(edx_mu, 2)` , others tend to be closer to the opposing ends of the distribution. Horror movies seem to be rated poorly by users while Film-Noir, Documentaries and War movies tend to receive quite high ratings. Perhaps it is worth mentioning the size of the error bars for those high rated genres which seems to be larger when compared to the bulk of the genres converging closer to the mean. This could indicated a higher variability in the star ratings for these genres.
 Regardless we want to examine the genre effect and it's impact on our predictions so we will capture it in our model.
 
-```{r genre_rating, fig.cap="Average Rating by Genre"}
+```{r genre_rating, fig.cap="Average Rating by Genre", echo=FALSE}
 edx_genre %>% group_by(genres) %>%
   summarize(
     count = n(),
@@ -290,7 +329,7 @@ edx_genre %>% group_by(genres) %>%
 \newpage
 # Methodology
 
-As mentioned already in the introduction, the validation dataset was reserved for the final hold-out test, the edx dataset was split into train (90%) and test (10%) sets which were used to train and test the algorithm in development. This is important to allow for cross-validation and refinement of the final model without the risk of over-training. Other methods for cross-validation include K-fold cross validation and bootstrapping but were not utilised here (see @irizarry_2020 for further information).
+As mentioned already in the introduction, the validation dataset was reserved for the final hold-out test, the edx dataset was split into train (90%) and test (10%) sets which were used to train and test the algorithm in development. This is important to allow for cross-validation and refinement of the final model without the risk of over-training. Other methods for cross-validation include K-fold cross validation and bootstrapping but were not utilised here [[4](https://www.crcpress.com/Introduction-to-Data-Science-Data-Analysis-and-Prediction-Algorithms-with/Irizarry/p/book/9780367357986)].
 
 The goals of this objective is two-fold:
 a) Improve predictions by reducing the the root mean square error (RMSE) by 10% or more over the naive algorithm (Just the Average) and
@@ -325,7 +364,7 @@ rm(edx_test_index, temp, removed)
 ```
 
 
-```{r set_target_RMSE}
+```{r set_target_RMSE, include=FALSE}
 
 target_rmse <- 0.8712
 ```
@@ -333,9 +372,10 @@ target_rmse <- 0.8712
 
 ## Calculating the error loss
 
-The residual mean square error (RMSE) is defined as the standard deviation of the residuals (prediction errors) where residuals are a measure of spread of data points from the regression line (@Glen_2020). In the formula shown below, $y_{u,i}$ is defined as the actual rating provided by user $i$ for movie $u$, $\hat{y}_{u,i}$  is the predicted rating for the same, and N is the total number of user/movie combinations.
+The residual mean square error (RMSE) is defined as the standard deviation of the residuals (prediction errors) where residuals are a measure of spread of data points from the regression line [[5](https://www.statisticshowto.com/probability-and-statistics/regression-analysis/rmse-root-mean-square-error/)]. In the formula shown below, $y_{u,i}$ is defined as the actual rating provided by user $i$ for movie $u$, $\hat{y}_{u,i}$  is the predicted rating for the same, and N is the total number of user/movie combinations.
 
 $$RMSE = \sqrt{\frac{1}{N}\sum_{u,i}\left(\hat{y}_{u,i}-y_{u,i}\right)^2}$$  
+
 ```{r Define_loess_function, include=FALSE}
 RMSE <- function(true_ratings, predicted_ratings) {
   sqrt(mean((true_ratings - predicted_ratings) ^ 2))
@@ -360,7 +400,7 @@ RMSE_avg <- RMSE(edx_test$rating, edx_train_mu)
 
 Predicting the average rating from the train set (`r round(edx_train_mu,2)`) for every entry in the test set resulted in a RMSE of `r round(RMSE_avg, 2)`, substantially above the project objective. Moreover, an RMSE of `r round(RMSE_avg,2)` means that predicted ratings are more than 1 star away from the actual rating, an unacceptable error loss for a movie recommendation system. Additionally it is quite far away from the project's second objective to reduce RMSE below 0.8712.
 
-```{r adding results to dataframe}
+```{r adding results to dataframe, echo=FALSE}
 training_results <-
   data.frame(Method = "Target Objective", RMSE = target_rmse) %>%
   rbind(c("Just the Average", round(RMSE_avg, 5)))
@@ -406,9 +446,9 @@ training_results <-
 training_results %>% knitr::kable()
 ```
 
-Figure 6 shows that the estimate of movie effect ($b_m$) varies considerably across all of the movies included in the train set. Adding this effect into the algorithm, in order to adjust for the movie effect, has indeed improved the accuracy of the model, yet still well above the target. 
+Figure 9 shows that the estimate of movie effect ($b_m$) varies considerably across all of the movies included in the train set. Adding this effect into the algorithm, in order to adjust for the movie effect, has indeed improved the accuracy of the model, yet still well above the target. 
 
-```{r movie_effect, echo=FALSE, fig.cap="Movie Effect Distribution"}
+```{r movie_effect_distribution , echo=FALSE, fig.cap="Movie Effect Distribution"}
 movie_b_m %>%
   ggplot(aes(b_m)) +
   geom_histogram(bins = 10, color = I("black")) +
@@ -424,28 +464,28 @@ $$Y_{u,m}=\mu+b_m+b_u+\epsilon_{u,m}$$
 $$\hat{b}_{u}=mean\left(\hat{y}_{u,m}-\hat{\mu}-\hat{b}_m\right)$$  
 
 
-```{r echo=FALSE}
+```{r  user_effect ,echo=FALSE}
 ### user effect ----
 user_b_u <- edx_train %>%
   left_join(movie_b_m, by = "movieId") %>%
   group_by(userId) %>%
   summarise(b_u = mean(rating - edx_train_mu - b_m))
 
-### Predict ratings - adjust for movie and user effects ----
+### Predict ratings - adjust for movie and user effects 
 predicted_b_u <- edx_test %>%
   left_join(movie_b_m, by = "movieId") %>%
   left_join(user_b_u, by = "userId") %>%
   mutate(pred = edx_train_mu + b_m + b_u) %>%
   pull(pred)
 
-### ensure the predictions don't exceed the rating limits ----
+### ensure the predictions don't exceed the rating limits 
 predicted_b_u[predicted_b_u < 0.5] <- 0.5
 predicted_b_u[predicted_b_u > 5] <- 5
 
 ### Calculate RMSE based on user effects ----
 RMSE_b_u <- RMSE(predicted_b_u, edx_test$rating)
 
-### Append training_results to dataframe ----
+### Append training_results to dataframe 
 training_results <-
   rbind(training_results,
         data.frame(Method = "Users Effect",
@@ -455,9 +495,9 @@ training_results %>% knitr::kable()
 ```
 
 
-Figure 7 shows the estimated effect of user ($b_u$) building on the movie effects model above. Whilst $b_u$ showed less variability than was observed with $b_m$, it was evident that adjusting for user effects enhanced the accuracy of the algorithm. Indeed, adjusting for user effects resulted in reaching both of the projects objectives. Thus, adjusting for both movie and user effects demonstrated the strong bias introduced by each of these variables on ratings. But can we do better?
+Figure 10 shows the estimated effect of user ($b_u$) building on the movie effects model above. Whilst $b_u$ showed less variability than was observed with $b_m$, it was evident that adjusting for user effects enhanced the accuracy of the algorithm. Indeed, adjusting for user effects resulted in reaching both of the projects objectives. Thus, adjusting for both movie and user effects demonstrated the strong bias introduced by each of these variables on ratings. But can we do better?
 
-```{r user_effect, fig.cap="User Effect Distribution"}
+```{r user_effect, fig.cap="User Effect Distribution", echo=FALSE}
 
 user_b_u %>%
   ggplot(aes(b_u)) +
@@ -465,6 +505,9 @@ user_b_u %>%
   labs(x = "User effects (b_u)")
 
 ```
+
+
+
 
 ### Genre Bias
 
@@ -477,14 +520,14 @@ $$\hat{b}_{g}=mean\left(\hat{y}_{u,m}-\hat{\mu}-\hat{b}_m-\hat{b}_u\right)$$
 ```{r genre_effect, echo=FALSE}
 
 
-### genre effect ----
+### genre effect 
 genre_b_g <- edx_train %>%
   left_join(movie_b_m, by = "movieId") %>%
   left_join(user_b_u, by = "userId") %>%
   group_by(genres) %>%
   summarise(b_g = mean(rating - edx_train_mu - b_m - b_u))
 
-### Predict ratings - adjust for movie, user and genre effects ----
+### Predict ratings - adjust for movie, user and genre effects 
 predicted_b_g <- edx_test %>%
   left_join(movie_b_m, by = "movieId") %>%
   left_join(user_b_u, by = "userId") %>%
@@ -492,14 +535,14 @@ predicted_b_g <- edx_test %>%
   mutate(pred = edx_train_mu + b_m + b_u + b_g) %>%
   pull(pred)
 
-### ensure the predictions don't exceed the rating limits ----
+### ensure the predictions don't exceed the rating limits 
 predicted_b_g[predicted_b_g < 0.5] <- 0.5
 predicted_b_g[predicted_b_g > 5] <- 5
 
-### Calculate RMSE based on genre effects ----
+### Calculate RMSE based on genre effects 
 RMSE_b_g <- RMSE(predicted_b_g, edx_test$rating)
 
-### Append training_results to dataframe ----
+### Append training_results to dataframe 
 training_results <-
   rbind(training_results,
         data.frame(Method = "Genre Effect",
@@ -509,11 +552,11 @@ training_results %>% knitr::kable()
 
 ```
 
-Figure 8 shows the distribution of estimate genre effects, $b_g$ in the train set, once again showing some variation across different genre combinations.
+Figure 11 shows the distribution of estimate genre effects, $b_g$ in the train set, once again showing some variation across different genre combinations.
 
-The output from the model when adjusting for genre, in addition to movie and user bias, was an RMSE of `r round(rmse_b_g,5)`. Thus adding genre effects into the model only pimproved thevaccuracy of the algorithm by very little, versus the previous model. Regardless, any incremental improvement is acceptable.
+The output from the model when adjusting for genre, in addition to movie and user bias, was an RMSE of `r round(RMSE_b_g,5)`. Thus adding genre effects into the model only pimproved thevaccuracy of the algorithm by very little, versus the previous model. Regardless, any incremental improvement is acceptable.
 
-```{r genre_effect, echo=FALSE, fig.cap="Genre Effect Distribution"}
+```{r genre_effect_distribution, echo=FALSE, fig.cap="Genre Effect Distribution"}
 
 genre_b_g %>%
   ggplot(aes(b_g)) +
@@ -533,7 +576,7 @@ $$\hat{b}_{y}=mean\left(\hat{y}_{u,m}-\hat{\mu}-\hat{b}_m-\hat{b}_u-\hat{b}_g\ri
 
 ```{r release_year, echo=FALSE}
 
-### release year effect ----
+### release year effect 
 year_b_y <- edx_train %>%
   left_join(movie_b_m, by = "movieId") %>%
   left_join(user_b_u, by = "userId") %>%
@@ -541,7 +584,7 @@ year_b_y <- edx_train %>%
   group_by(release_year) %>%
   summarise(b_y = mean(rating - edx_train_mu - b_m - b_u - b_g))
 
-### Predict ratings - adjust for movie, user, genre and year effects ----
+### Predict ratings - adjust for movie, user, genre and year effects 
 predicted_b_y <- edx_test %>%
   left_join(movie_b_m, by = "movieId") %>%
   left_join(user_b_u, by = "userId") %>%
@@ -550,14 +593,14 @@ predicted_b_y <- edx_test %>%
   mutate(pred = edx_train_mu + b_m + b_u + b_g + b_y) %>%
   pull(pred)
 
-### ensure the predictions don't exceed the rating limits ----
+### ensure the predictions don't exceed the rating limits 
 predicted_b_y[predicted_b_y < 0.5] <- 0.5
 predicted_b_y[predicted_b_y > 5] <- 5
 
-### Calculate RMSE based on year effects ----
+### Calculate RMSE based on year effects 
 RMSE_b_y <- RMSE(predicted_b_y, edx_test$rating)
 
-### Append training_results to dataframe ----
+### Append training_results to dataframe 
 training_results <-
   rbind(training_results,
         data.frame(Method = "Release Year Effect",
@@ -567,9 +610,9 @@ training_results %>% knitr::kable()
 
 ```
 
-The year of movie release adds some additional variability to the average rating in the train set as shown in Figure 8. Indeed, incorporating this into the training algorithm yielded a RMSE of `r round(RMSE_b_y, 5)` which is a modest improvement over the previous model.
+The year of movie release adds some additional variability to the average rating in the train set as shown in Figure 12. Indeed, incorporating this into the training algorithm yielded a RMSE of `r round(RMSE_b_y, 5)` which is a modest improvement over the previous model.
 
-```{r release_year, echo=FALSE, fig.cap="Release Year Effect Distribution"}
+```{r release_year_distribution, echo=FALSE, fig.cap="Release Year Effect Distribution"}
 
 year_b_y %>%
   ggplot(aes(b_y)) +
@@ -586,7 +629,6 @@ In our exploratory analysis, we did identify a slight downwards trend during a 1
 $$Y_{u,m}=\mu+b_m+b_u+b_g+b_y+b_r+\epsilon_{u,m}$$
 
 $$\hat{b}_{r}=mean\left(\hat{y}_{u,m}-\hat{\mu}-\hat{b}_m-\hat{b}_u-\hat{b}_g-\hat{b}_y\right)$$  
-
 
 ```{r year_rated, echo=FALSE}
 ### year rated effect 
@@ -615,7 +657,7 @@ predicted_b_r[predicted_b_r > 5] <- 5
 ### Calculate RMSE based on review date effects model
 RMSE_b_r <- RMSE(predicted_b_r, edx_test$rating)
 
-### Append training_results to dataframe ----
+### Append training_results to dataframe 
 training_results <-
   rbind(training_results,
         data.frame(Method = "Year Rated Effect",
@@ -625,10 +667,8 @@ training_results %>% knitr::kable()
 
 ```
 
-
-As expected, the rating year had a small impact on ratings and this was confirmed by visualising the distribution of $b_r$ in Figure 9.
-
-```{r echo=FALSE, fig.cap="Year Rated  Effect Distribution"}
+As expected, the rating year had a small impact on ratings and this was confirmed by visualising the distribution of $b_r$ in Figure 13.
+```{r year_rated_distribution, echo=FALSE, fig.cap="Year Rated  Effect Distribution"}
 year_b_r %>%
   ggplot(aes(b_r)) +
   geom_histogram(bins = 10, color = I("black")) +
@@ -637,17 +677,27 @@ year_b_r %>%
 
 ## Regularisation
 
-The last step in the algorithm development was to apply regularisation. Regularised regression is a machine learning algorithm which penalises parameter estimates which come from small sample sizes and are deemed to be somewhat unreliable. We used a programmatic approach to apply regularisation across all the effects modelled in the previous steps.
-Figure 10 shows the RMSE delivered across each of the $\lambda$ tested. The optimum value for $\lambda$ was `r lambda` which minimised RMSE to `r round(RMSE_reg, 5)`.
+The exploratory analysis showed that not only is the average rating affected by the movie, user, genre, year of release and date of review, but that the number of ratings also varies. Thus, for example, some movies and genres of movie received fewer ratings than others while some users provided fewer ratings than others. Similarly, the number of ratings varied by year of release and date of review. In each of these cases, the consequence of this variation is that the estimates of the effect ($b$) will have been subject to greater uncertainty when based on a smaller number of ratings.
+
+Regularised regression is a machine learning algorithm which penalises parameter estimates which come from small sample sizes and are deemed to be somewhat unreliable [[4](https://www.crcpress.com/Introduction-to-Data-Science-Data-Analysis-and-Prediction-Algorithms-with/Irizarry/p/book/9780367357986)]. 
+
+$$\frac{1}{N}\sum_{u,i}\left(y_{u,i}-\mu-b_i\right)^2+\lambda\sum_ib_i^2$$  
+
+Based on the above, the least squares estimate for the regularised effect of movies can be calculated as below, where $n_i$ is the number of ratings made for movie $i$. The effect of $\frac{1}{\lambda+n_i}$ is such that when the sample size is large, i.e. $n_i$ is a big number, $\lambda$ has little impact on the estimate, $\hat{b}_i(\lambda)$. On the other hand, where the sample size is small, i.e. $n_i$ is small, the impact of $\lambda$ increases and the estimate shrinks towards zero.
+
+$$\hat{b}_i\left(\lambda\right)=\frac{1}{\lambda+n_i}\sum_{u=1}^{n_i}\left(Y_{u,i}-\hat{\mu}\right)$$  
+
+
+The regularisation model we developed to adjust for all of the effects previously described, as shown below. A range of values for $\lambda$ (4 - 6) with increments of 0.01 was applied in order to tune the model to minimise the RMSE value. As before, all tuning was completed within the edx dataset, using the train and test sets, so as to avoid over-training the model in the validation set.  
+$$\frac{1}{N}\sum_{u,m}\left(y_{u,m}-\mu-b_m-b_u-b_g-b_y-b_r\right)^2+\lambda\left(\sum_mb_m^2+\sum_ub_u^2+\sum_gb_g^2+\sum_yb_y^2+\sum_rb_r^2\right)$$  
 
 ```{r Regularisation, include=FALSE}
-#  ----
 
-## Sequence of lambdas ranging from 1 to 3 with 0.1 increments ----
+## Sequence of lambdas ranging from 1 to 3 with 0.1 increments 
 lambdas <- seq(4, 6, 0.1)
 
 
-## Programmatically regularise model, predict ratings and calculate RMSE for each value of lambda ----
+## Programmatically regularise model, predict ratings and calculate RMSE for each value of lambda 
 
 # This took a couple of minutes on a laptop with 8GB RAM.
 rmses <- sapply(lambdas, function(l) {
@@ -691,10 +741,16 @@ rmses <- sapply(lambdas, function(l) {
 
 ```
 
-```{r Choose and visualise optimal lambda, echo=FALSE}
-### Choose and visualise optimal lambda ----
+```{r Choose ptimal lambda, include=FALSE}
+### Choose and visualise optimal lambda
 lambda <- lambdas[which.min(rmses)]
+### Minimum RMSE achieved 
+RMSE_reg <- min(rmses)
 
+```
+
+Figure 14 shows the RMSE delivered across each of the $\lambda$ tested. The optimum value for $\lambda$ was `r lambda` which minimised RMSE to `r round(RMSE_reg, 5)`.
+```{r Visualise_lamdas, echo=FALSE, fig.cap="Lamda Optimisation"}
 data.frame(lambdas, rmses) %>%
   ggplot(aes(lambdas, rmses)) +
   geom_point() +
@@ -711,11 +767,11 @@ data.frame(lambdas, rmses) %>%
   ) +
   labs(x = "Lambda", y = "RMSE")
 
-### Minimum RMSE achieved ----
-RMSE_reg <- min(rmses)
 
+```
 
-### Append training_results to dataframe ----
+```{r Append training_results, echo=FALSE}
+
 training_results <-
   rbind(training_results,
         data.frame(Method = "Regularised RMSE",
@@ -724,15 +780,21 @@ training_results <-
 training_results %>% knitr::kable()
 ```
 
-\newpage
-# Final Validation
+
+## Final Validation
 
 Now that our algorithm development has been completed, the final step is to train the algorithm using the entire edx dataset and then to predict ratings using the validation dataset which we will be using for the first time in our analysis.
 We will use the the optimal $\lambda$  = `r lambda` which we calculated during the regularisation step of the process and model all effects over the full edx data.
 
-```{r final_training_validation, echo=FALSE}
+```{r final_training_validation, include=FALSE}
 
-## Model all effects with the full edx dataset, regularised with optimal lambda ----
+### Calculate the full edx set average
+edx_mu <- mean(edx$rating)
+
+### Measure the RMSE of the full edx set average vs the validation dataset
+RMSE_naive <- RMSE(validation$rating, edx_mu)
+
+## Model all effects with the full edx dataset, regularised with optimal lambda 
 b_m <- edx %>%
   group_by(movieId) %>%
   summarise(b_m = sum(rating - edx_mu) / (n() + lambda))
@@ -764,7 +826,7 @@ b_r <- edx %>%
   summarise(b_r = sum(rating - b_m - b_u - b_g - b_y - edx_mu) / (n() +
                                                                     lambda))
 
-## Predict ratings in validation set using final model ----
+## Predict ratings in validation set using final model 
 predicted_ratings <- validation %>%
   left_join(b_m, by = "movieId") %>%
   left_join(b_u, by = "userId") %>%
@@ -775,33 +837,34 @@ predicted_ratings <- validation %>%
   pull(pred)
 
 
-## Calculate final RMSE against the validation set ----
+## Calculate final RMSE against the validation set
 RMSE_validated <- RMSE(validation$rating, predicted_ratings)
 
 ```
 
 \newpage
-
 # Results
 
 The algorithm we've developed, trained and tested has achieved the two goals of our objective against the final hold-out (validation) dataset.
 More specifically, we have achieved a RMSE of `r  round(RMSE_validated, 5)` which is a `r format(round(RMSE_validated - RMSE_avg, 5), scientific = F)` improvement over the  naive algorithm "Just the Average".
 
+## Imrovement over the Naive Algorithm
 ```{r naive_improvement, echo=FALSE}
 
 data.frame(Method = "Just the Average",
-           RMSE = RMSE_avg,
+           RMSE = RMSE_naive,
            Difference = "-") %>% rbind(c(
              "RMSE Validated",
              round(RMSE_validated, 5),
-             format(round(RMSE_validated - RMSE_avg, 5), scientific = F)
+             format(round(RMSE_validated - RMSE_naive, 5), scientific = F)
            )) %>% knitr::kable()
 
 ```
 
 and we have achieved an improvement of format(round(RMSE_validated - target_rmse, 5), scientific = F) over the winning score of the Netflix challenge.
 
-```{r}
+## Improvement over the winning score of the competition
+```{r target_improvement, echo=FALSE}
 data.frame(Method = "Target RMSE",
            RMSE = target_rmse,
            Difference = "-") %>% rbind(c(
@@ -812,15 +875,56 @@ data.frame(Method = "Target RMSE",
 
 ```
 
-
 \newpage
 # Conclusion
 
 The objective of this project was to develop a recommendation system using the MovieLens 10M dataset that predicted ratings with a residual mean square error of less than 0.8712 and an improvemnt of minimum 10% over the naive algorithm.. Adjusting for a number of estimated biases introduced by the movie, user, genre, release year and review date, and then regularising these in order to constrain the variability of effect sizes, met the project objective goals yielding a model with an RMSE of `r round(RMSE_reg,5)`.  This was confirmed in a final test using the previously unused validation dataset, with an RMSE of `r round(RMSE_validated, 5)`.
 
-Although the algorithm developed here met the project objective goals it still includes a sizeable error loss, not all of which may be considered truly independent, something that's justified by slightly worse performance of the algorithm against the final validation test vs the test set used during its development. We conclude that there is still room for accuracy improvement of the recommendation system with techniques that can account for some of this non-independent error. One such approach is matrix factorisation, a powerful technique for user or item-based collaborative filtering based machine learning which can be used to quantify residuals within this error loss based on patterns observed between groups of movies or groups of users such that the residual error in predictions can be further reduced [@irizarry_2020; @koren_2009b].
-
+Although the algorithm developed here met the project objective goals it still includes a sizeable error loss, not all of which may be considered truly independent, something that's justified by slightly worse performance of the algorithm against the final validation test vs the test set used during its development. We conclude that there is still room for accuracy improvement of the recommendation system with techniques that can account for some of this non-independent error. One such approach is matrix factorisation, a powerful technique for user or item-based collaborative filtering based machine learning which can be used to quantify residuals within this error loss based on patterns observed between groups of movies or groups of users such that the residual error in predictions can be further reduced [[4](https://www.crcpress.com/Introduction-to-Data-Science-Data-Analysis-and-Prediction-Algorithms-with/Irizarry/p/book/9780367357986)].
 
 \newpage
-
 # References
+
+[1] Schrage, 2017,
+title= Great Digital Companies Build Great Recommendation Engines ,
+url= https://hbr.org/2017/08/great-digital-companies-build-great-recommendation-engines ,
+journal= Harvard Business Review ,
+publisher= Harvard Business School Publishing ,
+author= Schrage, M. ,
+year= 2017 ,
+month= Aug 
+
+[2] Schrage, 2018,
+title= How Marketers Can Get More Value from Their Recommendation Engines ,
+url= https://hbr.org/2018/06/how-marketers-can-get-more-value-from-their-recommendation-engines ,
+journal= Harvard Business Review ,
+publisher= Harvard Business School Publishing ,
+author= Schrage, M. ,
+year= 2018 ,
+month= Jun 
+
+[3] Lohr, 2009,
+title= Netflix Awards $1 Million Prize and Starts a New Contest ,
+url= https://bits.blogs.nytimes.com/2009/09/21/netflix-awards-1-million-prize-and-starts-a-new-contest ,
+journal= The New York Times ,
+publisher= The New York Times ,
+author= Lohr, S. ,
+year= 2009 ,
+month= Sep 
+
+[4] Irizarry, 2020,
+title= Introduction to data science: data analysis and prediction algorithms with R ,
+url= https://www.crcpress.com/Introduction-to-Data-Science-Data-Analysis-and-Prediction-Algorithms-with/Irizarry/p/book/9780367357986 ,
+publisher= CRC Press ,
+author= Irizarry, Rafael A. ,
+year= 2020 
+
+[5] glen_2020,
+title= RMSE: Root Mean Square Error ,
+url= https://www.statisticshowto.com/probability-and-statistics/regression-analysis/rmse-root-mean-square-error/ ,
+journal= StatisticsHowTo.com: Elementary Statistics for the rest of us! ,
+author= Glen, Stephanie ,
+year= 2020 ,
+month= Jul 
+
+

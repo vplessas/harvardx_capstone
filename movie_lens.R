@@ -26,6 +26,11 @@ library(lubridate)
 library(stringr)
 library(knitr)
 
+##Set number of digits
+options(digits = 7)
+
+
+
 # MovieLens 10M dataset:
 # https://grouplens.org/datasets/movielens/10m/
 # http://files.grouplens.org/datasets/movielens/ml-10m.zip
@@ -93,10 +98,6 @@ edx <- rbind(edx, removed)
 rm(dl, ratings, movies, test_index, temp, movielens, removed)
 
 
-### Set number of digits ----
-options(digits = 7)
-
-
 # Exploratory Analysis ----
 
 ## Structure review ----
@@ -111,7 +112,6 @@ edx <-
       title, start = -5, end = -2
     )),
     year_rated = year(as_datetime(timestamp)),
-    month_rated = month(as_datetime(timestamp), label = TRUE)
   )
 
 validation <-
@@ -120,7 +120,6 @@ validation <-
       title, start = -5, end = -2
     )),
     year_rated = year(as_datetime(timestamp)),
-    month_rated = month(as_datetime(timestamp), label = TRUE)
   )
 
 
@@ -137,17 +136,57 @@ edx %>% ggplot(aes(rating)) +
              linetype = "dashed",
              colour = "blue") +
   ggtitle("Ratings Distribution") +
-  ylab("Count") +
+  ylab("Ratings Count") +
   xlab("Rating") +
   ggtitle("Ratings Distribution")
+
+
+### Average Ratings by Movie Histogram in the edx dataset ----
+edx %>%
+  group_by(movieId) %>%
+  summarise(mean_rating = mean(rating)) %>%
+  ggplot(aes(mean_rating)) +
+  geom_histogram(bins = 10, color = I("black")) +
+  geom_vline(xintercept = edx_mu,
+             linetype = "dashed",
+             colour = "blue") +
+  ylab("Number of Movies") +
+  xlab("Average Rating") +
+  ggtitle("Average Rating by Movie")
+
+### Number of ratings by Movie" Histogram in the edx dataset ----
+edx %>%
+  count(movieId) %>%
+  ggplot(aes(n)) +
+  geom_histogram(bins = 50, color = I("black")) +
+  scale_x_log10() +
+  ggtitle("Ratings Distribution") +
+  ylab("NUmber of Ratings") +
+  xlab("Movies") +
+  ggtitle("Number of ratings by Movie")
+
 
 ### Average rating by user in the edx dataset ----
 edx %>% group_by(userId) %>%
   summarise(mean_rating = mean(rating)) %>%
   ggplot(aes(mean_rating)) +
+  geom_histogram(bins = 10, color = I("black")) +
+  geom_vline(xintercept = edx_mu,
+             linetype = "dashed",
+             colour = "blue") +
+  labs(x = "Average rating", y = "Number of users") +
+  ggtitle("Average Rating by User")
+
+### Number of ratings by User Histogram in the edx dataset ----
+count(userId) %>%
+  ggplot(aes(n)) +
   geom_histogram(bins = 50, color = I("black")) +
-  labs(x = "Mean rating", y = "Number of users") +
-  ggtitle("Mean rating by user")
+  scale_x_log10() +
+  ggtitle("Ratings Distribution") +
+  ylab("Number of Ratings") +
+  xlab("Users") +
+  ggtitle("Number of ratings by User")
+
 
 ### Release Year Average Rating Curve ----
 edx %>%
@@ -218,8 +257,8 @@ edx_test_index <-
     p = 0.1,
     list = FALSE
   )
-edx_train <- edx[-edx_test_index,]
-temp <- edx[edx_test_index,]
+edx_train <- edx[-edx_test_index, ]
+temp <- edx[edx_test_index, ]
 
 ### Make sure userId and movieId in test set are also in train set ----
 edx_test <- temp %>%
@@ -255,7 +294,7 @@ RMSE_avg <- RMSE(edx_test$rating, edx_train_mu)
 ### Add the training_results to a dataframe ----
 training_results <-
   data.frame(Method = "Target RMSE", RMSE = target_rmse) %>%
-  rbind(c("Just the Average", round(RMSE_avg, 5)))
+  rbind(c("Just the Average", RMSE_avg))
 
 
 
@@ -543,6 +582,14 @@ training_results %>% knitr::kable()
 # Final Modelling ----
 
 ## Model all effects with the full edx dataset, regularised with optimal lambda ----
+
+### Calculate the full edx set average ----
+edx_mu <- mean(edx$rating)
+
+### Measure the RMSE of the full edx set average vs the validation dataset ----
+RMSE_naive <- RMSE(validation$rating, edx_mu)
+
+### Adjust the algorithm with the rest of the effects over the full edx dataset----
 b_m <- edx %>%
   group_by(movieId) %>%
   summarise(b_m = sum(rating - edx_mu) / (n() + lambda))
@@ -585,7 +632,6 @@ predicted_ratings <- validation %>%
   pull(pred)
 
 
-
 # Final validation of RMSE using the validation data set ----
 
 ## Calculate final RMSE against the validation set ----
@@ -595,11 +641,11 @@ RMSE_validated <- RMSE(validation$rating, predicted_ratings)
 ## Results Comparison ----
 
 data.frame(Method = "Just the Average",
-           RMSE = RMSE_avg,
+           RMSE = RMSE_naive,
            Difference = "-") %>% rbind(c(
              "RMSE Validated",
              round(RMSE_validated, 5),
-             format(round(RMSE_validated - RMSE_avg, 5), scientific = F)
+             format(round(RMSE_validated - RMSE_naive, 5), scientific = F)
            )) %>% knitr::kable()
 
 data.frame(Method = "Target RMSE",
