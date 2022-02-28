@@ -1,0 +1,34 @@
+---
+title: "Online Store Sales Forecasting"
+output: html_notebook
+---
+
+```{r load_libraries, include=FALSE}
+
+
+if (!require(tidyverse))
+  install.packages("tidyverse", repos = "http://cran.us.r-project.org")
+if (!require(fpp3))
+  install.packages("fpp3", repos = "http://cran.us.r-project.org")
+if (!require(knitr))
+  install.packages("knitr", repos = "http://cran.us.r-project.org")
+if (!require(readxl))
+  install.packages("readxl", repos = "http://cran.us.r-project.org")
+
+
+library(tidyverse)
+library(fpp3)
+library(knitr)
+library(readxl)
+
+```
+
+```{r pull_and_load_data}
+
+url<- "https://archive.ics.uci.edu/ml/machine-learning-databases/00352/Online%20Retail.xlsx"
+tmp <- tempfile(fileext = ".xlsx")
+download.file(url, destfile = tmp, mode="wb")
+
+online_store<- read_xlsx(tmp)
+
+```
