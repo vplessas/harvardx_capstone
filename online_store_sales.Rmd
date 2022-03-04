@@ -14,16 +14,21 @@ if (!require(knitr))
   install.packages("knitr", repos = "http://cran.us.r-project.org")
 if (!require(readxl))
   install.packages("readxl", repos = "http://cran.us.r-project.org")
+if (!require(skimr))
+  install.packages("skimr", repos = "http://cran.us.r-project.org")
 
 
 library(tidyverse)
 library(fpp3)
 library(knitr)
 library(readxl)
+library(skimr)
+
+options(dplyr.summarise.inform = FALSE)
 
 ```
 
-```{r pull_and_load_data}
+```{r pull_and_load_data, eval=FALSE, include=FALSE}
 
 url<- "https://archive.ics.uci.edu/ml/machine-learning-databases/00352/Online%20Retail.xlsx"
 tmp <- tempfile(fileext = ".xlsx")
@@ -32,3 +37,208 @@ download.file(url, destfile = tmp, mode="wb")
 online_store<- read_xlsx(tmp)
 
 ```
+
+```{r save and load data}
+
+#save(online_store,file = "online_store.rda")
+load("online_store.rda")
+
+```
+
+# Exploratory Analysis
+
+```{r examine data, echo=FALSE}
+
+skim(online_store)
+
+```
+
+```{r clean data, echo=FALSE}
+
+online_store<- online_store %>%
+  filter(Quantity > 0 , UnitPrice > 0) %>%
+  select(-CustomerID)
+
+```
+
+```{r}
+online_store %>%
+  arrange(desc(UnitPrice)) %>% head(20) %>% kable()
+```
+
+
+```{r}
+online_store <- online_store %>%
+  mutate(
+    Revenue = Quantity * UnitPrice,
+    InvoiceDate = as_date(InvoiceDate),
+    Continent = case_when(
+      Country %in% c(
+        "Austria",
+        "Belgium",
+        "Channel Islands",
+        "Czech Republic",
+        "Denmark",
+        "EIRE",
+        "European COmmunity",
+        "Finland",
+        "France",
+        "Germany",
+        "Greece",
+        "Iceland",
+        "Itay",
+        "Lithuania",
+        "Malta",
+        "Netherlands",
+        "Norway",
+        "Poland",
+        "Spain",
+        "Sweden",
+        "Switzerland",
+        "United Kingdom",
+        "Cyprus"
+      ) ~ "Europe",
+      Country %in% c(
+        "Bahrain",
+        "Hong Kong",
+        "Israel",
+        "Japan",
+        "Lebanon",
+        "Saudi Arabia",
+        "Singapore",
+        "United Arab Emirates"
+      ) ~ "Asia",
+      Country %in% c("Canada", "USA") ~ "North America",
+      Country == "RSA" ~ "Africa",
+      Country == "Australia" ~ "Oceania",
+      Country == "Brazil" ~ "South America",
+      TRUE ~ "Unspecified"
+    )
+  ) %>%
+  group_by(Continent, StockCode, Description, InvoiceDate) %>%
+  summarise(Quantity = sum(Quantity), Revenue = sum(Revenue)) %>%
+  ungroup()
+
+```
+
+```{r}
+sku_code = str_sub(StockCode, 1,5), 
+         sku_num = as.numeric(sku_code)
+```
+
+
+
+```{r}
+online_store %>%
+  filter(!Continent %in% c("Europe", "Oceania")) %>%
+  group_by(Continent, InvoiceDate) %>%
+  summarise(Revenue = sum(Revenue)) %>%
+  ggplot(aes(InvoiceDate, Revenue, colour = Continent))+
+  geom_line()
+  
+```
+
+
+
+
+
+
+```{r examine data 2, echo=FALSE}
+
+skim(online_store)
+
+```
+
+
+```{r}
+online_store %>%
+  group_by(StockCode, Description) %>%
+  summarise(n = n(), Quantity = sum(Quantity)) %>%
+  arrange(n, desc(Quantity))
+```
+```{r}
+online_store %>%
+  mutate(sku_num = as.numeric(StockCode)) %>%
+  filter(is.na(sku_num)) %>%
+  arrange(StockCode)
+```
+
+
+
+
+```{r}
+
+abc_xyz<- online_store %>%
+  mutate(revenue = UnitPrice * Quantity) %>%
+  group_by(sku_code) %>%
+  summarise(revenue = sum(revenue), 
+            covar = sd(Quantity, na.rm = T)/mean(Quantity, na.rm = T)) %>%
+  arrange(desc(revenue)) %>%
+  mutate(proportions = revenue/sum(revenue), cumulative = cumsum(proportions), 
+         abc = case_when( 
+           cumulative <= 0.7 ~ "A",
+           cumulative > 0.7 & cumulative <= 0.9 ~ "B",
+           TRUE ~"C"),
+         xyz = case_when( 
+           covar <= 0.7 ~ "X",
+           covar > 0.7 & covar <= 0.9 ~ "Y",
+           TRUE ~"Z"))
+  
+
+```
+
+
+```{r}
+
+
+online_store %>%
+  group_by(sku_code) %>%
+  summarise(covar = sd(Quantity, na.rm = T)/mean(Quantity, na.rm = T)) %>%
+  filter(!is.na(covar), covar>0 &  covar <= 0.8) %>%
+  ggplot(aes(covar))+
+  geom_histogram(bins = 50)
+  
+  
+  
+```
+
+
+```{r}
+online_store %>%
+  group_by(sku_code) %>%
+  summarise(covar = sd(Quantity, na.rm = T)/mean(Quantity, na.rm = T), qty = sum(Quantity)) %>%
+  filter(!is.na(covar)) %>%
+  arrange(desc(qty))
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
