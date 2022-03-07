@@ -53,94 +53,59 @@ skim(online_store)
 
 ```
 
+```{r}
+online_store %>%
+slice_min(na.omit(UnitPrice),n=10, with_ties = F) %>% kable()
+```
+
+```{r}
+online_store %>%
+slice_max(na.omit(UnitPrice),n=10, with_ties = F) %>% kable()
+```
+
+```{r}
+online_store %>%
+  mutate(length = str_length(StockCode)) %>%
+  ggplot(aes(length))+
+  geom_bar()
+```
+
+
+```{r}
+
+online_store %>%
+  mutate(length = str_length(StockCode)) %>%
+  filter(length < 5) %>%
+  distinct(StockCode, Description) %>% kable()
+```
+
+
+```{r}
+
+online_store %>%
+  mutate(length = str_length(StockCode)) %>%
+  filter(length > 5) %>%
+  distinct(StockCode, Description) %>% head(10) %>% kable()
+```
+
+
+
 ```{r clean data, echo=FALSE}
 
 online_store<- online_store %>%
-  filter(Quantity > 0 , UnitPrice > 0) %>%
-  select(-CustomerID)
+  filter(Quantity > 0 , UnitPrice > 0, str_length(StockCode) %in% c(5,6))
 
 ```
 
 ```{r}
 online_store %>%
-  arrange(desc(UnitPrice)) %>% head(20) %>% kable()
-```
-
-
-```{r}
-online_store <- online_store %>%
-  mutate(
-    Revenue = Quantity * UnitPrice,
-    InvoiceDate = as_date(InvoiceDate),
-    Continent = case_when(
-      Country %in% c(
-        "Austria",
-        "Belgium",
-        "Channel Islands",
-        "Czech Republic",
-        "Denmark",
-        "EIRE",
-        "European COmmunity",
-        "Finland",
-        "France",
-        "Germany",
-        "Greece",
-        "Iceland",
-        "Itay",
-        "Lithuania",
-        "Malta",
-        "Netherlands",
-        "Norway",
-        "Poland",
-        "Spain",
-        "Sweden",
-        "Switzerland",
-        "United Kingdom",
-        "Cyprus"
-      ) ~ "Europe",
-      Country %in% c(
-        "Bahrain",
-        "Hong Kong",
-        "Israel",
-        "Japan",
-        "Lebanon",
-        "Saudi Arabia",
-        "Singapore",
-        "United Arab Emirates"
-      ) ~ "Asia",
-      Country %in% c("Canada", "USA") ~ "North America",
-      Country == "RSA" ~ "Africa",
-      Country == "Australia" ~ "Oceania",
-      Country == "Brazil" ~ "South America",
-      TRUE ~ "Unspecified"
-    )
-  ) %>%
-  group_by(Continent, StockCode, Description, InvoiceDate) %>%
-  summarise(Quantity = sum(Quantity), Revenue = sum(Revenue)) %>%
-  ungroup()
-
+slice_max(na.omit(Quantity), n=10) %>% kable()
 ```
 
 ```{r}
-sku_code = str_sub(StockCode, 1,5), 
-         sku_num = as.numeric(sku_code)
+online_store<- online_store %>%
+  filter(!InvoiceNo %in% c("581483", "541431"))
 ```
-
-
-
-```{r}
-online_store %>%
-  filter(!Continent %in% c("Europe", "Oceania")) %>%
-  group_by(Continent, InvoiceDate) %>%
-  summarise(Revenue = sum(Revenue)) %>%
-  ggplot(aes(InvoiceDate, Revenue, colour = Continent))+
-  geom_line()
-  
-```
-
-
-
-
 
 
 ```{r examine data 2, echo=FALSE}
@@ -150,86 +115,369 @@ skim(online_store)
 ```
 
 
+
 ```{r}
 online_store %>%
-  group_by(StockCode, Description) %>%
-  summarise(n = n(), Quantity = sum(Quantity)) %>%
-  arrange(n, desc(Quantity))
+  mutate(fivedig = str_sub(StockCode, 1,5)) %>%
+  filter(is.na(as.numeric(fivedig))) %>%
+  distinct(StockCode, Description)
+```
+
+```{r}
+online_store %>%
+  group_by(Country) %>%
+  summarise(revenue = sum(Quantity * UnitPrice)) %>%
+  slice_max(na.omit(revenue), n=10) %>%
+  ggplot(aes(reorder(Country, -revenue), revenue, fill = Country)) +
+  geom_col()
 ```
 ```{r}
 online_store %>%
-  mutate(sku_num = as.numeric(StockCode)) %>%
-  filter(is.na(sku_num)) %>%
-  arrange(StockCode)
+  group_by(Country) %>%
+  summarise(Quantity = sum(Quantity)) %>%
+  slice_max(na.omit(Quantity), n=10) %>%
+  ggplot(aes(reorder(Country, -Quantity), Quantity, fill = Country)) +
+  geom_col()
 ```
 
 
+```{r}
+online_store <- 
+  online_store %>%
+  filter(Country == "United Kingdom") %>%
+  mutate(
+    Quanity = as.integer(Quantity),
+    Revenue = Quantity * UnitPrice,
+    InvoiceDate = as_date(InvoiceDate),
+    product_code = str_sub(StockCode, 1,5)
+    ) %>%
+  group_by(product_code, InvoiceDate, InvoiceNo) %>%
+  summarise(Quantity = sum(Quantity), Revenue = sum(Revenue)) %>%
+  ungroup()
+  
+```
 
+
+Needs graph here...
+
+# Hierarchies
 
 ```{r}
 
-abc_xyz<- online_store %>%
-  mutate(revenue = UnitPrice * Quantity) %>%
-  group_by(sku_code) %>%
-  summarise(revenue = sum(revenue), 
-            covar = sd(Quantity, na.rm = T)/mean(Quantity, na.rm = T)) %>%
-  arrange(desc(revenue)) %>%
-  mutate(proportions = revenue/sum(revenue), cumulative = cumsum(proportions), 
-         abc = case_when( 
-           cumulative <= 0.7 ~ "A",
-           cumulative > 0.7 & cumulative <= 0.9 ~ "B",
-           TRUE ~"C"),
-         xyz = case_when( 
-           covar <= 0.7 ~ "X",
-           covar > 0.7 & covar <= 0.9 ~ "Y",
-           TRUE ~"Z"))
+ab_hl<- online_store %>%
+  group_by(product_code) %>%
+  summarise(Revenue = sum(Revenue),
+            Orders = n()) %>%
+  ungroup() %>%
+  arrange(desc(Revenue)) %>%
+  mutate(proportions_rev = Revenue/sum(Revenue), cumulative_rev = cumsum(proportions_rev), 
+         ab = case_when( 
+           cumulative_rev <= 0.8 ~ "A",
+           TRUE ~"B")) %>%
+  arrange(desc(Orders)) %>%
+  mutate(proportions_ord = Orders/sum(Orders), cumulative_ord = cumsum(proportions_ord), 
+         hl = case_when( 
+           cumulative_ord <= 0.8 ~ "H",
+           TRUE ~"L")) %>%
+  select(-Revenue, -Orders, -proportions_rev, -cumulative_rev, -proportions_ord, -cumulative_ord)
   
 
 ```
 
 
 ```{r}
+table(ab_hl$ab, ab_hl$hl)
 
-
+```
+```{r graph}
 online_store %>%
-  group_by(sku_code) %>%
-  summarise(covar = sd(Quantity, na.rm = T)/mean(Quantity, na.rm = T)) %>%
-  filter(!is.na(covar), covar>0 &  covar <= 0.8) %>%
-  ggplot(aes(covar))+
-  geom_histogram(bins = 50)
+  left_join(ab_hl, by = "product_code") %>%
+  mutate(ab_hl = paste0(ab,hl)) %>%
+  group_by(ab_hl, InvoiceDate) %>%
+  summarise(Quantity = sum(Quantity)) %>%
+  ungroup()
+
+## add_graph
+
+```
+
+
+```{r final dataset}
+
+online_store <- online_store %>%
+  left_join(ab_hl, by = "product_code") %>%
+  mutate(ab_hl = paste0(ab,hl)) %>%
+  filter(ab_hl == "AH") %>%
+  group_by(ab_hl, InvoiceDate) %>%
+  summarise(Quantity = sum(Quantity)) %>%
+  ungroup()
+
+online_store %>% glimpse()
+
+```
+
+
+
+# Forecasting
+
+
+```{r convert to tsibble}
+
+online_store_tsbl<- online_store %>%
+  as_tsibble(key = ab_hl, index = InvoiceDate) %>%
+  filter_index("2011") %>%
+  group_by_key() %>%
+  summarise(Quantity = sum(Quantity)) %>%
+  ungroup()
+
+online_store_tsbl %>% glimpse()
   
-  
-  
+```
+
+
+
+# Missing Values
+
+```{r}
+
+online_store_tsbl %>%
+has_gaps(.full = TRUE)
+
 ```
 
 
 ```{r}
-online_store %>%
-  group_by(sku_code) %>%
-  summarise(covar = sd(Quantity, na.rm = T)/mean(Quantity, na.rm = T), qty = sum(Quantity)) %>%
-  filter(!is.na(covar)) %>%
-  arrange(desc(qty))
+
+online_store_tsbl %>%
+count_gaps(.full = TRUE) %>% 
+  ggplot(aes(.n)) +
+  scale_x_log10()+
+  geom_histogram(bins = 20)
+```
+
+```{r}
+online_store_gaps<-
+online_store_tsbl %>%
+  group_by_key() %>%
+  fill_gaps(Quantity = as.integer(median(Quantity)))%>%
+  ungroup()
+
+online_store_gaps %>% has_gaps(.full = TRUE)
+
 ```
 
 
 
+Outliers
+
+```{r}
+online_store_gaps %>%
+  autoplot()
+```
+
+```{r fig.height=8, fig.width=10}
+
+decomposition<- online_store_gaps %>%
+  model(
+    stl = STL(Quantity ~ season(period =1), robust = TRUE)
+  ) %>%
+  components()
+
+ decomposition %>% autoplot()
+
+```
+
+```{r}
+
+outliers <-
+  decomposition %>%
+  filter(
+    remainder < quantile(remainder, 0.25) - 3* IQR(remainder) |
+    remainder > quantile(remainder, 0.75) + 3* IQR(remainder)
+  )
+
+outliers
+```
 
 
 
+```{r}
+online_store_outliers <-
+  online_store_gaps %>%
+  anti_join(outliers) %>%
+  fill_gaps()
+```
+
+
+```{r}
+online_store_clean <-
+  online_store_outliers %>%
+  model(ARIMA(Quantity)) %>%
+  interpolate(online_store_outliers)
+```
+
+```{r}
+online_store_clean %>%
+  autoplot()
+
+```
+
+# Time Series Analysis
+
+fill it here ...
+
+
+# Basic Method
+
+
+```{r}
+
+online_store_train <-
+online_store_clean %>%
+  filter(InvoiceDate <= (max(InvoiceDate)-28))
+
+online_store_test <-
+online_store_clean %>%
+  filter(InvoiceDate > (max(InvoiceDate)-28))
+
+
+```
 
 
 
+```{r}
+## Fit Model ----
+fit <- online_store_train %>%
+  filter(InvoiceDate <= (max(InvoiceDate)-28)) %>%
+  model(
+     snaive = SNAIVE(Quantity),
+     arima = ARIMA(Quantity),
+     lm = TSLM(Quantity ~ trend() +season()),
+     ets = ETS(Quantity)
+  ) 
+
+fc <- fit %>%
+  forecast(h = "28 days")
+
+#  fc %>%
+#    autoplot(online_store_train, level = NULL) +
+#    facet_grid(.model ~. , scales = "free_y")
+
+fc %>% accuracy(online_store_train)
+
+
+fit %>%
+  refit(online_store_test) %>%
+  accuracy()
+
+```
+
+
+```{r}
+## Fit Model ----
+fit_ets <- online_store_train %>%
+  filter(InvoiceDate <= (max(InvoiceDate)-28)) %>%
+  model(
+     ets = ETS(Quantity)
+  ) 
+
+fc_ets <- fit_ets %>%
+  forecast(h = 28)
+
+ fc_ets %>%
+   autoplot(online_store_train %>%
+              filter(InvoiceDate >= '2011-09-01'))
+
+
+fc_ets %>% accuracy(online_store_train)
+
+
+fit_ets %>%
+  refit(online_store_test) %>%
+  accuracy()
+
+
+fit_ets %>%
+  refit(online_store_test) %>%
+  autoplot(online_store_clean)
+
+
+```
+
+
+# Bootstrapping & Forecast Bagging
+
+
+```{r fig.height=8, fig.width=10}
+
+online_store_stl<- online_store_train %>%
+  model(stl = STL(Quantity))
+  
+  online_store_stl %>%
+  components() %>%
+  autoplot()
 
 
 
+```
 
 
+```{r fig.height=6, fig.width=10}
+online_store_stl %>%
+  generate(new_data = online_store_train, times = 10, seed = 1,
+           bootstrap_block_size = 28) %>%
+  autoplot(.sim) +
+  autolayer(online_store_train, Quantity) +
+  guides(colour = "none") +
+  labs(title = "AH Product sales: Bootstrapped series",
+       y="Units Sold")
+
+```
 
 
+```{r}
+
+sim<- online_store_stl %>%
+generate(new_data = online_store_train, times = 10, seed = 1,
+           bootstrap_block_size = 28) %>%
+  select(-.model, -Quantity)
 
 
+```
 
 
+```{r fig.height=6, fig.width=10}
+
+ets_forecasts <- sim %>%
+  model(ets = ETS(.sim)) %>%
+  forecast(h= 28)
+
+ets_forecasts %>%
+  update_tsibble(key = .rep) %>%
+  autoplot(.mean) +
+ autolayer(online_store_train, Quantity) +
+  guides(colour = "none") +
+  labs(title = "AH Product sales: Bootstrapped series",
+       y="Units Sold")
+
+```
+
+
+```{r fig.height=6, fig.width=10}
+
+bagged <- ets_forecasts %>%
+  summarise(bagged_mean = mean(.mean))
+
+online_store_train %>%
+  model(ets = ETS(Quantity)) %>%
+  forecast(h= 28) %>%
+  autoplot(online_store_clean) +
+  autolayer(bagged, bagged_mean, col = "#D55E00") +
+  labs(title = "AH Product sales: Bootstrapped Forecast",
+       y="Units Sold")
+
+
+```
 
 
 
