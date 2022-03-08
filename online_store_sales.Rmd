@@ -23,6 +23,7 @@ library(fpp3)
 library(knitr)
 library(readxl)
 library(skimr)
+library(distributional)
 
 options(dplyr.summarise.inform = FALSE)
 
@@ -46,6 +47,7 @@ load("online_store.rda")
 ```
 
 # Exploratory Analysis
+
 
 ```{r examine data, echo=FALSE}
 
@@ -129,17 +131,18 @@ online_store %>%
   summarise(revenue = sum(Quantity * UnitPrice)) %>%
   slice_max(na.omit(revenue), n=10) %>%
   ggplot(aes(reorder(Country, -revenue), revenue, fill = Country)) +
-  geom_col()
+  geom_col()+
+  theme(
+    axis.text.x = element_text(
+      size =  8,
+      angle = 90,
+      vjust = 0.5,
+      hjust = 1
+    ),
+    legend.position = "none")+
+  labs(x = "Country") +
+  ggtitle("Revenue for Top 10 Countries")
 ```
-```{r}
-online_store %>%
-  group_by(Country) %>%
-  summarise(Quantity = sum(Quantity)) %>%
-  slice_max(na.omit(Quantity), n=10) %>%
-  ggplot(aes(reorder(Country, -Quantity), Quantity, fill = Country)) +
-  geom_col()
-```
-
 
 ```{r}
 online_store <- 
@@ -156,9 +159,37 @@ online_store <-
   ungroup()
   
 ```
+```{r}
 
+online_store %>%
+  group_by(InvoiceDate) %>%
+  summarise(Quantity = sum(Quantity)) %>%
+  ungroup() %>%
+  ggplot(aes(InvoiceDate, Quantity)) +
+  geom_point() +
+  geom_smooth(method = "lm", se= FALSE) +
+   labs(y = "Units Sold") +
+  scale_x_date(date_labels = "%b %y", date_breaks  = "1 month") +
+  ggtitle("Sales Trend in Units") +
+  theme(
+    axis.text.x = element_text(
+      size =  8,
+      angle = 90,
+      vjust = 0.5,
+      hjust = 1
+    ),
+    axis.title.x = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    panel.background = element_rect(colour = "#d4dddd"),
+    legend.position = "none",
+    plot.title = element_text(hjust = 0.5)
+  )
 
-Needs graph here...
+```
+
 
 # Hierarchies
 
@@ -189,15 +220,37 @@ ab_hl<- online_store %>%
 table(ab_hl$ab, ab_hl$hl)
 
 ```
+
+
 ```{r graph}
 online_store %>%
   left_join(ab_hl, by = "product_code") %>%
   mutate(ab_hl = paste0(ab,hl)) %>%
   group_by(ab_hl, InvoiceDate) %>%
   summarise(Quantity = sum(Quantity)) %>%
-  ungroup()
-
-## add_graph
+  ungroup() %>%
+  ggplot(aes(InvoiceDate, Quantity, colour = ab_hl)) +
+  geom_line() +
+  facet_grid(ab_hl~., scales = "free_y")+
+   labs(y = "Units Sold") +
+  scale_x_date(date_labels = "%b %y", date_breaks  = "1 month") +
+  ggtitle("Units Sold Online by Product Group") +
+  theme(
+    axis.text.x = element_text(
+      size =  8,
+      angle = 90,
+      vjust = 0.5,
+      hjust = 1
+    ),
+    axis.title.x = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    panel.background = element_rect(colour = "#d4dddd"),
+    legend.position = "none",
+    plot.title = element_text(hjust = 0.5)
+  )
 
 ```
 
@@ -218,7 +271,7 @@ online_store %>% glimpse()
 
 
 
-# Forecasting
+# Time Series Analysis
 
 
 ```{r convert to tsibble}
@@ -234,6 +287,11 @@ online_store_tsbl %>% glimpse()
   
 ```
 
+```{r}
+online_store_tsbl %>%
+  autoplot() +
+  geom_smooth(method = "lm", se = FALSE)
+```
 
 
 # Missing Values
@@ -259,7 +317,8 @@ count_gaps(.full = TRUE) %>%
 online_store_gaps<-
 online_store_tsbl %>%
   group_by_key() %>%
-  fill_gaps(Quantity = as.integer(median(Quantity)))%>%
+  fill_gaps() %>%
+  tidyr::fill(Quantity, .direction = "down") %>%
   ungroup()
 
 online_store_gaps %>% has_gaps(.full = TRUE)
@@ -268,12 +327,7 @@ online_store_gaps %>% has_gaps(.full = TRUE)
 
 
 
-Outliers
-
-```{r}
-online_store_gaps %>%
-  autoplot()
-```
+# Outliers
 
 ```{r fig.height=8, fig.width=10}
 
@@ -316,91 +370,257 @@ online_store_clean <-
   interpolate(online_store_outliers)
 ```
 
+
+
+# Time Series Analysis
+
 ```{r}
 online_store_clean %>%
+  autoplot() +
+  geom_smooth(method = "lm", se = FALSE)
+
+```
+
+```{r}
+
+online_store_clean %>% features(Quantity, feat_stl)
+```
+
+
+```{r fig.height=8, fig.width=8}
+
+lagged_sales <-
+  online_store_clean %>%
+  filter(month(InvoiceDate) > 1)
+
+lagged_sales %>%
+  gg_lag(Quantity, geom = "point")+
+  labs(x = "lag(Quantity, k)")
+
+
+
+```
+
+```{r}
+
+online_store_clean %>%
+  ACF(Quantity, lag_max = 28) %>%
+  autoplot()
+
+
+```
+
+```{r}
+
+online_store_clean %>%
+  ACF(Quantity, lag_max = 84) %>%
   autoplot()
 
 ```
 
-# Time Series Analysis
 
-fill it here ...
+```{r fig.height=8, fig.width=10}
+# Decomposition ----
+online_store_clean %>%
+  model(
+    stl = STL(Quantity ~ trend(window = 7) + season(window = "periodic"))
+  ) %>%
+  components() %>% autoplot()
+  
+```
 
+# Forecasting
 
-# Basic Method
+## Train and Test sets
 
 
 ```{r}
 
-online_store_train <-
-online_store_clean %>%
+online_store_fit <- online_store_clean %>%
   filter(InvoiceDate <= (max(InvoiceDate)-28))
 
-online_store_test <-
-online_store_clean %>%
+online_store_validate <- online_store_clean %>%
   filter(InvoiceDate > (max(InvoiceDate)-28))
+
+online_store_train <- online_store_fit %>%
+  filter(InvoiceDate <= (max(InvoiceDate)-28))
+
+online_store_test <- online_store_fit %>%
+  filter(InvoiceDate > (max(InvoiceDate)-28))
+
+```
+
+
+## Forecasting Methods
+
+```{r}
+
+#Naive ----
+fit_naive<- online_store_train %>%
+  model(snaive = SNAIVE(Quantity ~ lag("week")))
+
+fc_naive<- fit_naive %>%
+  forecast(h = 28) 
+
+fit_naive %>% refit(online_store_test) %>%
+  accuracy() %>% 
+  select(ab_hl, .model, MAPE, ACF1)
+
+fc_naive %>%
+  autoplot(online_store_train %>% filter(InvoiceDate >= "2011-07-01"))
+
+```
+
+```{r}
+# Linear Model ----
+
+fit_lm <- online_store_train %>%
+  model(
+    lm = TSLM(Quantity ~ trend() + season())
+  )
+
+fc_lm <- fit_lm %>%
+  forecast(h = 28)
+
+fit_lm %>% refit(online_store_test) %>%
+  accuracy() %>% 
+  select(ab_hl, .model, MAPE, ACF1)
+
+fc_lm %>% autoplot(online_store_train %>% filter(InvoiceDate >= "2011-07-01"))
+
+
+```
+
+```{r}
+# Exponential Smoothing ----
+
+## Simple Exponential Smoothing ----
+
+fit_ses <- online_store_train %>%
+  model(
+    ets = ETS(Quantity ~ error("A") + trend("N") + season("N"))
+  )
+
+fc_ses <- fit_ses %>%
+  forecast(h = 28)
+
+fit_ses %>% refit(online_store_test) %>%
+  accuracy() %>% 
+  select(ab_hl, .model, MAPE, ACF1)
+
+fc_ses %>% autoplot(online_store_train %>% filter(InvoiceDate >= "2011-07-01"))
 
 
 ```
 
 
+```{r}
+# Exponential Smoothing ----
+
+## Holt's Exponential Smoothing ----
+
+fit_hes <- online_store_train %>%
+  model(
+    ets = ETS(Quantity ~ error("A") + trend("A") + season("N"))
+  )
+
+fc_hes <- fit_hes %>%
+  forecast(h = 28)
+
+fit_hes %>% refit(online_store_test) %>%
+  accuracy() %>% 
+  select(ab_hl, .model, MAPE, ACF1)
+
+fc_hes %>% autoplot(online_store_train %>% filter(InvoiceDate >= "2011-07-01"))
+
+
+```
+
+
+```{r}
+# Exponential Smoothing ----
+
+## Holt - Winter's Exponential Smoothing ----
+
+fit_hwes <- online_store_train %>%
+  model(
+    ets_additive = ETS(Quantity ~ error("A") + trend("A") + season("A")),
+    ets_multiplicative = ETS(Quantity ~ error("M") + trend("A") + season("M")),
+    ets_damped = ETS(Quantity ~ error("M") + trend("Ad") + season("M"))
+  )
+
+fc_hwes <- fit_hwes %>%
+  forecast(h = 28)
+
+fit_hwes %>% refit(online_store_test) %>%
+  accuracy() %>% 
+  select(ab_hl, .model, MAPE, ACF1)
+
+fc_hwes %>% autoplot(online_store_train %>% filter(InvoiceDate >= "2011-07-01"), level = NULL)
+
+
+```
+
+
+```{r}
+
+# Exponential Smoothing ----
+
+## Auto Exponential Smoothing ----
+
+fit_aes <- online_store_train %>%
+  model(
+    ets = ETS(Quantity)
+  )
+
+fit_aes %>% refit(online_store_test) %>%
+  accuracy()
+
+report(fit_aes)
+
+```
+
+
+#Validation
 
 ```{r}
 ## Fit Model ----
-fit <- online_store_train %>%
-  filter(InvoiceDate <= (max(InvoiceDate)-28)) %>%
+fit <- online_store_fit %>%
   model(
-     snaive = SNAIVE(Quantity),
-     arima = ARIMA(Quantity),
-     lm = TSLM(Quantity ~ trend() +season()),
-     ets = ETS(Quantity)
+    snaive = SNAIVE(Quantity ~ lag("week")),
+    lm = TSLM(Quantity ~ trend() + season()),
+    ets_additive = ETS(Quantity ~ error("A") + trend("A") + season("A")),
+    ets_multiplicative = ETS(Quantity ~ error("M") + trend("A") + season("M")),
+    ets_damped = ETS(Quantity ~ error("M") + trend("Ad") + season("M")),
+    ets_auto = ETS(Quantity)
   ) 
-
-fc <- fit %>%
-  forecast(h = "28 days")
-
-#  fc %>%
-#    autoplot(online_store_train, level = NULL) +
-#    facet_grid(.model ~. , scales = "free_y")
-
-fc %>% accuracy(online_store_train)
 
 
 fit %>%
-  refit(online_store_test) %>%
+  refit(online_store_validate) %>%
   accuracy()
+
+
+fit %>% forecast(h = 28) %>% accuracy(online_store_clean)
 
 ```
 
 
 ```{r}
 ## Fit Model ----
-fit_ets <- online_store_train %>%
+
+fit <- online_store_clean %>%
   filter(InvoiceDate <= (max(InvoiceDate)-28)) %>%
   model(
-     ets = ETS(Quantity)
+    eas = ETS(Quantity)
   ) 
 
-fc_ets <- fit_ets %>%
+fc<- fit %>%
   forecast(h = 28)
 
- fc_ets %>%
-   autoplot(online_store_train %>%
-              filter(InvoiceDate >= '2011-09-01'))
+fc %>% accuracy(online_store_clean)
 
-
-fc_ets %>% accuracy(online_store_train)
-
-
-fit_ets %>%
-  refit(online_store_test) %>%
-  accuracy()
-
-
-fit_ets %>%
-  refit(online_store_test) %>%
-  autoplot(online_store_clean)
-
+fc %>% autoplot(online_store_clean %>% filter(InvoiceDate >= "2011-07-01"))
 
 ```
 
@@ -410,37 +630,21 @@ fit_ets %>%
 
 ```{r fig.height=8, fig.width=10}
 
-online_store_stl<- online_store_train %>%
+online_store_stl<- online_store_fit %>%
   model(stl = STL(Quantity))
-  
-  online_store_stl %>%
-  components() %>%
-  autoplot()
 
+sim<- online_store_stl %>%
+generate(new_data = online_store_fit, times = 100, bootstrap_block_size = 28, seed = 2022) %>%
+  select(-.model, -Quantity)
 
-
-```
-
-
-```{r fig.height=6, fig.width=10}
 online_store_stl %>%
-  generate(new_data = online_store_train, times = 10, seed = 1,
-           bootstrap_block_size = 28) %>%
+  generate(new_data = online_store_fit, times = 100, bootstrap_block_size = 28, seed = 2022) %>%
   autoplot(.sim) +
-  autolayer(online_store_train, Quantity) +
+  autolayer(online_store_fit, Quantity) +
   guides(colour = "none") +
   labs(title = "AH Product sales: Bootstrapped series",
        y="Units Sold")
-
-```
-
-
-```{r}
-
-sim<- online_store_stl %>%
-generate(new_data = online_store_train, times = 10, seed = 1,
-           bootstrap_block_size = 28) %>%
-  select(-.model, -Quantity)
+  
 
 
 ```
@@ -452,10 +656,11 @@ ets_forecasts <- sim %>%
   model(ets = ETS(.sim)) %>%
   forecast(h= 28)
 
+
 ets_forecasts %>%
   update_tsibble(key = .rep) %>%
   autoplot(.mean) +
- autolayer(online_store_train, Quantity) +
+ autolayer(online_store_fit, Quantity) +
   guides(colour = "none") +
   labs(title = "AH Product sales: Bootstrapped series",
        y="Units Sold")
@@ -468,19 +673,25 @@ ets_forecasts %>%
 bagged <- ets_forecasts %>%
   summarise(bagged_mean = mean(.mean))
 
-online_store_train %>%
-  model(ets = ETS(Quantity)) %>%
-  forecast(h= 28) %>%
-  autoplot(online_store_clean) +
-  autolayer(bagged, bagged_mean, col = "#D55E00") +
-  labs(title = "AH Product sales: Bootstrapped Forecast",
-       y="Units Sold")
+bagged_forecasts<- bagged %>%
+  mutate(dist = dist_degenerate(bagged_mean)) %>%
+  as_fable(response = "Quantity", distribution = dist)
 
+bagged_forecasts %>% accuracy(online_store_clean) %>% mutate(method = "Bagged ETS")
 
 ```
 
 
 
+```{r}
+online_store_fit %>%
+  model(ets_auto = ETS(Quantity)) %>%
+  forecast(h = 28) %>%
+  autoplot(online_store_clean %>% filter(InvoiceDate >= "2011-08-01")) +
+  autolayer(bagged, bagged_mean, col = "#D55E00") +
+  labs(title = "AH Product sales: Bootstrapped Forecast",
+       y="Units Sold")
+```
 
 
 
