@@ -5,7 +5,7 @@ date: "08/03/2022"
 output:
   pdf_document:
     latex_engine: xelatex
-    df_print: paged
+    df_print: tibble
     number_sections: yes
     toc: yes
     fig_caption: yes
@@ -19,7 +19,7 @@ urlcolor: blue
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE,
-                      fig.align="center", out.width="90%")
+                      fig.align="center", out.width="80%")
 ```
 
 ```{r load_libraries, include=FALSE}
@@ -1133,6 +1133,7 @@ online_store_fit %>%
        y="Units Sold")
 ```
 
+
 \newpage
 
 # Conclusion and further discussion
@@ -1155,6 +1156,8 @@ More specifically, our task was to forecast on a $h$ = 28 horizon, however a tim
 We've have used 3 of the most popular forecasting algorithms to generate our predictions, however it would be useful in future analysis to further test popular algorithms such as ARIMA, Prophet and TBATS.
 Additionally, our dataset was a multivariate one which we coerced into a univariate time series.
 More advanced machine learning techniques such as Non-Liner Regression and clustering could have provided further insights on the interaction between variables in the dataset as well as providing more sophisticated classification of product and potentially customer groups.
+
+\newpage
 
 # **References**
 
