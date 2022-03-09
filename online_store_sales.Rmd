@@ -15,7 +15,7 @@ bibliography: references.bib
 include-before: '`\newpage{}`{=latex}'
 urlcolor: blue
 ---
-
+ 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE,
                       fig.align="center", out.width="80%")
@@ -48,7 +48,7 @@ options(dplyr.summarise.inform = FALSE)
 
 ```
 
-```{r pull_and_load_data, eval=FALSE, include=FALSE}
+```{r pull_and_load_data, include=FALSE}
 
 url<- "https://archive.ics.uci.edu/ml/machine-learning-databases/00352/Online%20Retail.xlsx"
 tmp <- tempfile(fileext = ".xlsx")
@@ -58,18 +58,12 @@ online_store<- read_xlsx(tmp)
 
 ```
 
-```{r save and load data, include=FALSE}
-
-#save(online_store,file = "online_store.rda")
-load("online_store.rda")
-
-```
 
 \newpage
 
 # Introduction
 
-Forecasting is required in many situations: deciding whether to build another power generation plant in the next five years requires forecasts of future demand; scheduling staff in a call centre next week requires forecasts of call volumes; stocking an inventory requires forecasts of stock requirements [@hyndman_2021].
+Forecasting is required in many situations, for example deciding whether to build another power generation plant in the next five years requires forecasts of future demand; scheduling staff in a call centre next week requires forecasts of call volumes; stocking an inventory requires forecasts of stock requirements [@hyndman_2021].
 
 The predictability of an event or a quantity depends on several factors including:
 
@@ -78,38 +72,41 @@ The predictability of an event or a quantity depends on several factors includin
 3)  How similar the future is to the past;
 4)  Whether the forecasts can affect the thing we are trying to forecast.
 
-In this analysis, we have assumed the role of a data scientist, assigned with the task of developing a time series forecasting model of $h$ = 28 forecasting horizon.
+In this analysis, we have assumed the role of a data scientist, assigned with the task of developing a **time series forecasting** model of $h$ = **28** forecasting horizon.
 The dataset analysed was an extract from a UK online store's sales database located in the [UCI Machine Learning Repository](https://archive.ics.uci.edu/ml/datasets/online+retail) .
-It contained a year's worth of sales recorded for over three thousand items on a daily granularity level.
-Our time-series dataset was of a multi-variate nature which we then reduced into a univariate time-series in order to focus our analysis on a specific subset of the data.
+It contained a year's worth of sales recorded for over **three thousand items** on a **daily granularity level**.
+Our time-series dataset was of a **multi-variate** nature which we then reduced into a **univariate** time-series in order to focus our analysis on a specific subset of the data.
 
 The dataset contained a number of inconsistencies that needed to be normalised before we could commence our analysis, for example missing values, outliers, non-standardised product codes etc.
-For that reason, a significant part of this report has been devoted in exploratory data analysis and in time-series features analysis.
-Due to the large number of independent time series in the dataset (over three thousand product codes), we have decided to group our data in higher granularity product categories based on a two dimensional 80/20 rule.
-The new product hierarchy consisted of:
+For that reason, a significant part of this report has been devoted in **exploratory data analysis** and in **time-series analysis**.
+Due to the large number of independent time series in the dataset (over three thousand product codes), we have decided to group our data in **higher granularity** product categories based on a **two dimensional 80/20** rule. The new product hierarchy consisted of:
 
-A = Products which make up the 80% of the company's revenue across the year.
-B = Products making the rest 20%
+1) A = Products which make up the 80% of the company's revenue across the year.
+2) B = Products making the rest 20%
 
-H = Products which drive 80% of the orders (Invoices) L = Products making up the rest 20%
+3) H = Products which drive 80% of the orders (Invoices) 
+4) L = Products making up the rest 20%
 
-We have combined above categories into a two by two table to review all combinations and isolated the products belonging in the "AH" intersection i.e., products of high revenue and large volume of orders which have the majority of impact on both the company's top and bottom lines.
-A time-series analysis has helped us identify the trend and weekly seasonality pattern in our data.
-We have used those features to fine tune the algorithm's used during the development of our model.
-Specifically, we've identified that there an upward additive trend in the series and that sales tend to peak around the middle of each week.
+We have combined the above categories into a **two by two table** to review all combinations and isolated the products belonging in the **"AH"** intersection i.e., products of **high revenue** and **large volume of orders** which have the majority of impact on both the company's top and bottom lines.
+A time-series analysis has helped us identify the **trend** and weekly **seasonality** pattern in our data.
+We have used those features to fine tune the algorithms used during the development of our model.
+Specifically, we've identified that there an **upward additive trend** in the series and that sales tend to peak around the **middle of each week**.
 
-Our methodology commenced by splitting our data into a 28 days long dataset named online_store_validate which we'll be reserved until the very end of our analysis to test our model's accuracy, and a fit dataset named online_store_fit which contains all data prior to the validation set.
-We have further proceeded in splitting the online_store_fit data into train and test sets which will be used to develop our model.
-The algorithm with the best performance we'll be then recalculated over the entire online_store_fit dataset and produce 28 days of multi-step forecasts to compare with the actual values in the validation set.
+Our methodology commenced by splitting our data into a **28 days** long dataset named **online_store_validate** which we reserved until the very end of our analysis to test our model's accuracy, and a fit dataset named **online_store_fit** which contains all data prior to the validation set.
+We have further proceeded in splitting the online_store_fit data into **train and test** sets which will be used to develop our model.
+The algorithm with the **best performance** was recalculated over the **entire online_store_fit** dataset and produced **28 days of multi-step** forecasts to compare with the actual values in the validation set.
+
+We have used the **Mean Absolute Percentage Error (MAPE)** as our loss function. Percentage errors have the advantage of being unit-free, and so are frequently used to compare forecast performances between data sets [@hyndman_2021].
 
 We then proceeded with a mathematical overview and application of the forecasting methods and their corresponding algorithms as well as examining the score results of each algorithm's performance over the test dataset.
-We have provided a visual representation of the forecasts generated from the fitted values on the train set as well as their 80% and 95% confidence intervals.
-The methods used were a) The naive method (SNAIVE) with a trend and seasonal component applied [@hyndman_2021] , b) Linear Regression (TSLM) with trend and seasonality components [@hyndman_2021], and c) the Exponential Smoothing algorithm in its multiple versions for trend and seasonality adjustments [@hyndman_2021].
-Exponential Smoothing and specifically the Damped Trend with multiplicative error and seasonality had outperformed all other methods by producing a smaller MAPE = 25% when tested and validated against hold-out part of our dataset reserved for that final estimation.
+We have provided a **visual representation** of the forecasts generated from the train set's **fitted values** as well as their **80% and 95% confidence intervals**.
 
-To ensure we haven't over fitted our model and that is generalised enough to produce unbiased forecasts based on new data we have used timeseries bootstrapping to simulate 100 time series and produced individual forecasts using the Exponential Smoothing algorithm [@BERGMEIR2016303].
-We then averaged the individual forecasts ("forecast bagging") and measured the accuracy vs the validation dataset.
-We have seen a marginal accuracy improvement with a MAPE = 24%.
+The methods used were a) The **naive method** (SNAIVE) with a trend and seasonal component applied [@hyndman_2021] , b) **Linear Regression** (TSLM) with trend and seasonality components [@hyndman_2021], and c) the **Exponential Smoothing** algorithm in its **multiple versions** for trend and seasonality adjustments [@hyndman_2021].
+Exponential Smoothing and specifically the **Damped Trend** with multiplicative error and seasonality had outperformed all other methods by producing the smaller **MAPE = 25%** when tested and validated against hold-out part of our dataset reserved for that final estimation (online_store_validate).
+
+To ensure we haven't over fitted our model and that is generalised enough to produce unbiased forecasts based on new data, we have used **time series bootstrapping** to simulate **100 time series** and produced forecasts using the **Exponential Smoothing** algorithm [@BERGMEIR2016303].
+We then averaged the individual forecasts ("forecast bagging") and measured the accuracy vs the **validation dataset**.
+We have seen a **marginal accuracy improvement** with a **MAPE = 24%**.
 
 This analysis relies heavily on the work of and tools developed by Professor [Rob J Hyndmand](https://robjhyndman.com/) and his team at the Department of Econometrics & Business Statistics, Monash University, Australia.
 A lot of the code and theory in this analysis has been adapted and inspired from the The [Forecasting Principles and Practice 3rd ed](https://otexts.com/fpp3/), online textbook produced by the same team.
@@ -712,6 +709,12 @@ online_store_test <- online_store_fit %>%
 
 ```
 
+## Define loss function 
+
+We have chosen MAPE to evaluate the forecast accuracy of our model. MAPE is defined as:
+
+$$\text{Mean absolute percentage error: MAPE} = \text{mean}(|p_{t}|)$$
+
 ## Forecasting Methods
 
 ### NAIVE
@@ -851,7 +854,7 @@ Given both the trend and seasonal patterns in our data, it comes as no surprise 
 ```{r refit ses, echo=FALSE}
 fit_ses %>% refit(online_store_test) %>%
   accuracy() %>% 
-  select(ab_hl, .model, MAPE, ACF1)
+  select(ab_hl, .model, MAPE)
 ```
 
 #### Holt's Exponential Smoothing
@@ -892,7 +895,7 @@ Also, there's been a noticeable improvement in the MAPE score which indicates th
 
 fit_hes %>% refit(online_store_test) %>%
   accuracy() %>% 
-  select(ab_hl, .model, MAPE, ACF1)
+  select(ab_hl, .model, MAPE)
 ```
 
 #### Holt Winter's Exponential Smoothing
@@ -996,7 +999,7 @@ Looking at the MAPE results we can observe that the damped trend version of the 
 fit <- online_store_clean %>%
   filter(InvoiceDate <= (max(InvoiceDate)-28)) %>%
   model(
-     snaive = SNAIVE(Quantity ~ lag("week")),
+    snaive = SNAIVE(Quantity ~ lag("week")),
     lm = TSLM(Quantity ~ trend() + season()),
     ets_additive = ETS(Quantity ~ error("A") + trend("A") + season("A")),
     ets_multiplicative = ETS(Quantity ~ error("M") + trend("A") + season("M")),
@@ -1132,29 +1135,27 @@ online_store_fit %>%
        y="Units Sold")
 ```
 
-
 \newpage
 
 # Conclusion and further discussion
 
 In this analysis, we have assumed the role of a data scientist, assigned with the task of developing a time series forecasting model of $h$ = 28 time horizon.
 The dataset analysed was an extract from a UK online store's sales database which contained a year's worth of sales recorded for over three thousand items on a daily granularity level.
-Due to the large volume of independent time-series in the dataset, we've focused our efforts to products of high revenue and large volume of orders which have the majority of impact on both the company's top and bottom lines.
+Due to the large volume of independent time-series in the dataset, we've focused our efforts to products of **high revenue and large volume of orders** which have the majority of impact on both the company's top and bottom lines.
 After a thorough clean up of the dataset we've proceed with feature extraction from the time-series of trend and seasonal nature.
 Those features where later used to fine tune the algorithms used to during the fitting process of our model on the train dataset.
 
-The algorithms tested where a) The naive method (SNAIVE) with a trend and seasonal component applied, b) Linear Regression (TSLM) with trend and seasonality, and c) the Exponential Smoothing algorithm in its multiple versions for trend and seasonality adjustments.
-Exponential Smoothing and specifically the Damped Trend with multiplicative error and seasonality had outperformed all other methods by producing a smaller MAPE when tested and validated against hold-out part of our dataset reserved for that final estimation.
-Moreover, we've applied time series bootstrapping with 100 simulations of block size = 28 to ensure are performance score was not the result of over fitting our model.
-Our results where in line with the theory suggesting that on average, bagging gives better forecasts than just applying ETS() directly [@BERGMEIR2016303].
-However it comes with a performance cost as it more complex data structures it could take a significant amount of time to calculate.
+The algorithms tested where a) The **naive method** (SNAIVE) with a trend and seasonal component applied, b) **Linear Regression** (TSLM) with **trend and seasonality**, and c) **the Exponential Smoothing** algorithm and its multiple versions for trend and seasonality adjustments.
+Exponential Smoothing and specifically the **Damped Trend** with multiplicative error and seasonality had outperformed all other methods by producing a smaller MAPE when tested and validated against hold-out part of our dataset reserved for that final estimation.
+Moreover, we've applied **time series bootstrapping** with **100 simulations** of block size = 28 to ensure are performance score was not the result of over fitting our model.
+Our results where in line with the theory suggesting that on average, bagging gives **better forecasts** than just applying ETS() directly [@BERGMEIR2016303].
+However it comes with a **performance cost** as it more complex data structures it could take a significant amount of time to calculate.
 
-Time series forecasting is a vast and complex topic in data science.
-With that in mind there's further analysis that coud potentially improve prediction on this dataset and which we haven't included in this instance.
-More specifically, our task was to forecast on a $h$ = 28 horizon, however a time-series cross validation would have allowed us to estimate what it the optimal horizon to forecast to minimise error.
+**Time series forecasting** is a vast and complex topic in data science.
+With that in mind there's further analysis that could potentially improve predictions on this dataset and which we haven't included in this instance.
+More specifically, our task was to forecast on a $h$ = 28 horizon, however a **time-series cross validation** would have allowed us to estimate what it the optimal horizon to forecast to minimise error.
 We've have used 3 of the most popular forecasting algorithms to generate our predictions, however it would be useful in future analysis to further test popular algorithms such as ARIMA, Prophet and TBATS.
-Additionally, our dataset was a multivariate one which we coerced into a univariate time series.
-More advanced machine learning techniques such as Non-Liner Regression and clustering could have provided further insights on the interaction between variables in the dataset as well as providing more sophisticated classification of product and potentially customer groups.
+Additionally, our dataset was a multivariate one which we coerced into a univariate time series. More advanced machine learning techniques such as **Non-Linear Regression** and **Clustering** could have provided further insights on the interaction between variables in the dataset as well as providing more sophisticated classification of product and potentially customer groups.
 
 \newpage
 
