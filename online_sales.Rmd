@@ -1,7 +1,15 @@
 ---
-title: "Online Store Sales Forecasting"
-output: html_notebook
+title: "Online Sales Forecasting"
+author: "Vasileios Plessas"
+date: "08/03/2022"
+output: pdf_document
 ---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
 
 ```{r load_libraries, include=FALSE}
 
@@ -994,7 +1002,3 @@ Moreover, we've applied time series bootstrapping with 100 simulations of block 
 
 Time series forecasting is a vast and complex topic in data science. With that in mind there's further analysis that coud potentially improve prediction on this dataset and which we haven't included in this instance. More specifically, our task was to forecast on a $h$ = 28 horizon, however a time-series cross validation would have allowed us to estimate what it the optimal horizon to forecast to minimise error. We've have used 3 of the most popular forecasting algorithms to generate our predictions, however it would be useful in future analysis to further test popular algorithms such as ARIMA, Prophet and TBATS.
 Additionally, our dataset was a multivariate one which we coerced into a univariate time series. More advanced machine learning techniques such as Non-Liner Regression and clustering could have provided further insights on the interaction between variables in the dataset as well as providing more sophisticated classification of product and potentially customer groups.
-
-
-
-
