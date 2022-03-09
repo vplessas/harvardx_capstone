@@ -5,14 +5,13 @@ date: "08/03/2022"
 output:
   pdf_document:
     latex_engine: xelatex
-    df_print: tibble
+    df_print: default
     number_sections: yes
     toc: yes
     fig_caption: yes
     includes:
   html_document: default
 bibliography: references.bib
-fontsize: 11pt
 include-before: '`\newpage{}`{=latex}'
 urlcolor: blue
 ---

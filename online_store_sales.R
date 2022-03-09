@@ -1,6 +1,10 @@
 
-  ```{r load_libraries, include=FALSE}
 
+###Online Store Sales Forecasting - HarvardX Capstone Project###
+
+#Prepare Environment ----
+
+##Install and load necessary libraries ----
 
 if (!require(tidyverse))
   install.packages("tidyverse", repos = "http://cran.us.r-project.org")
@@ -17,7 +21,7 @@ if (!require(distributional))
 
 
 library(tidyverse)
-library(fpp3)
+library(fpp3) # Loads the Tidyverts group of packages
 library(knitr)
 library(readxl)
 library(skimr)
@@ -25,9 +29,8 @@ library(distributional)
 
 options(dplyr.summarise.inform = FALSE)
 
-```
 
-```{r pull_and_load_data, eval=FALSE, include=FALSE}
+## Pull data from UCI Machine Learning Repository ----
 
 url<- "https://archive.ics.uci.edu/ml/machine-learning-databases/00352/Online%20Retail.xlsx"
 tmp <- tempfile(fileext = ".xlsx")
@@ -35,120 +38,87 @@ download.file(url, destfile = tmp, mode="wb")
 
 online_store<- read_xlsx(tmp)
 
-```
 
-```{r save and load data, include=FALSE}
 
-#save(online_store,file = "online_store.rda")
-load("online_store.rda")
+# Exploratory Analysis ----
 
-```
 
-# Exploratory Analysis
-
-In this early stage of our exploratory analysis, we have used the [skimr](https://cran.r-project.org/web/packages/skimr/vignettes/skimr.html) package as way to quickly review different statistics about our dataset. Skimr provides a frictionless approach to summary statistics which conforms to the "principle of least surprise", displaying summary statistics the user can skim quickly to understand their data. It handles different data types and returns a skim_df object which can be included in a pipeline or displayed nicely for the human reader.
-
-Based on Skimr's output we can see that our dataset consists of 541,909 rows and 8 columns in totat and of types character, numeric and timestamp. More interestingly , Skimr informs us that a couple of fields are incomplete. Specifically the item description and CustomerID. The latter is missing a significant percentage of it's values, so at this stage we are flagging it as a candidate to be ognored in our further analysis.
-
-An important observation is regarding the Quantity and Price fields. We can observe variances ranging from large negative values to equally large positive ones. These are potential ouliers that we'll later identify and either remove or replace to avoid skewing the results of our analysis. Finally, the timestamp range is approximately a year with the earliest sale recorded in December 2010 and the latest one in December 2011.
-
-## First pass
-```{r examine data1, echo=FALSE}
+## First pass ----
 
 skim(online_store)
-```
 
-We have examined the bottom 10 prices in the dataset. As expected the large negative values observed earlier are present here and they are not related to products, rather financial adjustments. There's also a number of products with zero prices, meaning they have contrbuted to the company's revenue.
 
-```{r bottom_10_prices, echo=FALSE}
+# We have examined the bottom 10 prices in the dataset. As expected the large negative values observed earlier are present here and they are not related to products, rather financial adjustments. There's also a number of products with zero prices, meaning they have contributed to the company's revenue.
 
 online_store %>%
 slice_min(na.omit(UnitPrice),n=10, with_ties = F)
-```
 
-Similarly, for the top 10 prices , we can see that they correspond to customer fees and instruction manuals which are not considered as products.
 
-```{r top_10_prices, echo=FALSE}
+#Similarly, for the top 10 prices , we can see that they correspond to customer fees and instruction manuals which are not considered as products.
+
 
 online_store %>%
 slice_max(na.omit(UnitPrice),n=10, with_ties = F)
-```
 
-Another important observation histogram that product codes (StockCode) appear to differentiate a lot, both in their formats and character length. Is there potentially a pattern that the majority of product codes follow? Figure 1, shows that the vast majority of codes follow a five character format, with a few codes being shorter and a few more longer than that.
 
-```{r skucode_length, echo=FALSE}
+# Another important observation histogram that product codes (StockCode) appear to differentiate a lot, both in their formats and character length. Is there potentially a pattern that the majority of product codes follow? Figure 1, shows that the vast majority of codes follow a five character format, with a few codes being shorter and a few more longer than that.
 
 online_store %>%
   mutate(length = str_length(StockCode)) %>%
   ggplot(aes(length))+
   geom_bar()
-```
 
-We have first looked at the shorter length code and examine what products do they refer to. As expected they are not referring to actual products that can be traded.
-```{r short_skucodes, echo=FALSE}
+
+#We have first looked at the shorter length code and examine what products do they refer to. As expected they are not referring to actual products that can be traded.
 
 online_store %>%
   mutate(length = str_length(StockCode)) %>%
   filter(length < 5) %>%
   distinct(StockCode, Description)
-```
 
-However, product codes of length >5 are actual products whose code has a letter suffix. This could potentially indicated that they are part of an assortment or they are variations of a "parent" project.
-```{r long_skucodes, echo=FALSE}
+
+#However, product codes of length >5 are actual products whose code has a letter suffix. This could potentially indicated that they are part of an assortment or they are variations of a "parent" project.
 
 online_store %>%
   mutate(length = str_length(StockCode)) %>%
   filter(length > 5) %>%
   distinct(StockCode, Description) %>% head(10)
-```
 
-Similarly, if we filter on the top 10 products based on Quantity. We can identify the large value observed earlier. The first and second observations, although they refer to actual products and have contributed to the company's revenue (price >0), they appear to have been one-offs. We can confirm this since the next invoice of a priced product (573008), has a much lower quantity.
-```{r top10_products_qty ,echo=FALSE}
+
+#Similarly, if we filter on the top 10 products based on Quantity. We can identify the large value observed earlier. 
 
 online_store %>%
   slice_max(na.omit(Quantity), n=10)
-```
 
-At this point we can start cleaning up some of these inconsistencies and review again what our data look like. Specifically we have filtered out any entries with prices less than zero. Entries with negative quantities have also been removed as they in general refer to product returns, stock adjustments or damaged stock. We are interested in forecasting the volume of stock that the business will need to deliver to customers so negative quantities need to be factored out.
-Additionally, we have only kept entries whose product codes are of character length 5 or 6. That way our dataset will consists of actual products.
 
-```{r remove_outliers, echo=FALSE}
+# At this point we can start cleaning up some of these inconsistencies and review again what our data look like. Specifically we have filtered out any entries with prices less than zero. Entries with negative quantities have also been removed as they in general refer to product returns, stock adjustments or damaged stock. We are interested in forecasting the volume of stock that the business will need to deliver to customers so negative quantities need to be factored out.
+# Additionally, we have only kept entries whose product codes are of character length 5 or 6. That way our dataset will consists of actual products.
+
 online_store<- online_store %>%
   filter(!InvoiceNo %in% c("581483", "541431"))
-```
 
-```{r filter_zeros, echo=FALSE}
 
 online_store<- online_store %>%
   filter(Quantity > 0 , UnitPrice > 0, str_length(StockCode) %in% c(5,6))
 
-```
 
-## Second Pass
+## Second Pass ----
 
-The new skimr output is a lot cleaner and something we can move into the next phase of our analysis.
-```{r examine_data2, echo=FALSE}
+#The new skimr output is a lot cleaner and something we can move into the next phase of our analysis.
 
 skim(online_store)
 
-```
 
-A final check we need to do with regards to product codes is to check if we'd left in any with a character length 5 but of non-numeric type as the actual product codes are. We have used the str_sub() function from the Stringr package to isolate the first 5 characters (since 6 letter products still have a letter suffix to them), then temporarily coerced the output into a numeric class. The logic is that is non numeric product codes exist, the coercion will introduce NAs which will then isolate and review. This check has returned zero entries so our product base is clean.
+# Final check for any remaining non numeric codes
 
-```{r last_code_check, echo=FALSE}
 online_store %>%
   mutate(fivedig = str_sub(StockCode, 1,5)) %>%
   filter(is.na(as.numeric(fivedig))) %>%
   distinct(StockCode, Description)
-```
 
 
-Another interesting distribution to examine is that of revenue by country (see Figure 2). UK sales dominate our market spread, which is natural since our company is a UK online store. To ensure we reduce potentially variability in the sales data used in our analysis due to different buying patterns across countries, we will focus only on UK sales.
-Furthermore, we will remove the suffix letter from the six character length products identified earlier and aggregate all variations against their parent 5 letter code. Assortment mix planning is beyond the scope of this analysis and it is usually handled much later in the supply chain planning process.
+## Performance by Country ----
 
-## Performance by Country
-
-```{r country_revenue, echo=FALSE}
 online_store %>%
   group_by(Country) %>%
   summarise(revenue = sum(Quantity * UnitPrice)) %>%
@@ -165,9 +135,9 @@ online_store %>%
     legend.position = "none")+
   labs(x = "Country") +
   ggtitle("Revenue for Top 10 Countries")
-```
 
-```{r filter_coutry, include=FALSE}
+
+## Filter on the United Kingdom ---- 
 online_store <- 
   online_store %>%
   filter(Country == "United Kingdom") %>%
@@ -181,11 +151,8 @@ online_store <-
   summarise(Quantity = sum(Quantity), Revenue = sum(Revenue)) %>%
   ungroup()
   
-```
 
-## Overall trend
-Figure 3 shows the time series distribution of our final dataset. We fit a linear regression line to indicate that our sales data exhibit an identifiable upwards trend. We can also observe a few outliers that we hadn't detected in the previous steps. For these will, use some more sophisticated techniques later that would allows us to normalise our dataset better.
-```{r data_spread, echo=FALSE}
+## Overall trend ----
 
 online_store %>%
   group_by(InvoiceDate) %>%
@@ -214,25 +181,10 @@ online_store %>%
     plot.title = element_text(hjust = 0.5)
   )
 
-```
 
+## Product Grouping ----
 
-## Product Grouping
-
-Our dataset is currently made of `r  n_distinct(online_store$product_code)` unique product codes. This is a huge number of individual time series to be able to forecast for. Moreover, there's significant variability across these series which makes it even more difficult to develop a generalised model that performs well overall.
-
-Grouping products in higher granularities is a fundamental step to identify important trends in the data and unique features shared across product families. Each business has their own logic on how to group similar products together which is usually referred to as a product hierarchy. For a toy company for example this could be a case where all plush toys are grouped under the same family to differentiate them from products of different customer target groups such as action figures.
-
-In our case and since we don't have any prior knowledge of these products we've decided to follow a two dimensional 80/20 rule and create an A,B - H,L product split based on Revenue and Order Volume.
-
-A = Products which make up the 80% of the company's revenue across the year.
-B = Products making the rest 20%
-
-H = Products which drive 80% of the orders (Invoices)
-L = Products making up the rest 20%
-
-
-```{r assign_categories, include=FALSE}
+### Assign_categories ----
 
 ab_hl<- online_store %>%
   group_by(product_code) %>%
@@ -251,26 +203,11 @@ ab_hl<- online_store %>%
            TRUE ~"L")) %>%
   select(-Revenue, -Orders, -proportions_rev, -cumulative_rev, -proportions_ord, -cumulative_ord)
 
-
-```
-
-After assigning the those categories we have used the table() function to create a 2x2 table showing the muber of products in each quadrant. Out `r  n_distinct(online_store$product_code)`  , 716  (AH) of them are driving 80% of the company's revenue and orders. These are items that have an immediate impact both on the top line but also on the bottom line as a high order volume could incur large supply chain costs in order to successfully meet that customer demand.
-
-There is a small number of products (AL) that also contribute to the 80% revenue baseline but they don't have a large numebr of orders agaisnt them. We can assume that these are high price point items or potentially infrequent bulk orders of items.
-
-Perharps from a business perspective the items that will need to reviewd by management are the ones bolnging to the BH category. That is products that drive a large number of orders but they only have minimal contribution to the revenue baseline. These products could significantly increase supply chain costs and can potentially have an impact on the company's bottom-line.
-
-Finally the majority of the company's product codes fall under the low revenue/low orders bucket (BL). These products could potentially be old and discontinued products or simply not popular ones that have been marked down and the business is simply trying to offload fromtheir inventories.
-
-
-```{r two by two table, echo=FALSE}
+### two by two table ----
 table(ab_hl$ab, ab_hl$hl) %>% kable()
 
-```
 
-Figure 4 shows a faceted time-series plot which visualises each category's sales performance in units across the year. For the rest of our analysis we have focused on the AH category as these product are of the greatest strategic importance due to their contribution in the business's top and bottom lines.
-
-```{r group_timelines, echo=FALSE}
+### Groupped Time Seies ----
 online_store %>%
   left_join(ab_hl, by = "product_code") %>%
   mutate(ab_hl = paste0(ab,hl)) %>%
