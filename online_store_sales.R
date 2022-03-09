@@ -1,9 +1,5 @@
----
-title: "Online Store Sales Forecasting"
-output: html_notebook
----
 
-```{r load_libraries, include=FALSE}
+  ```{r load_libraries, include=FALSE}
 
 
 if (!require(tidyverse))
@@ -110,7 +106,7 @@ Similarly, if we filter on the top 10 products based on Quantity. We can identif
 ```{r top10_products_qty ,echo=FALSE}
 
 online_store %>%
-slice_max(na.omit(Quantity), n=10)
+  slice_max(na.omit(Quantity), n=10)
 ```
 
 At this point we can start cleaning up some of these inconsistencies and review again what our data look like. Specifically we have filtered out any entries with prices less than zero. Entries with negative quantities have also been removed as they in general refer to product returns, stock adjustments or damaged stock. We are interested in forecasting the volume of stock that the business will need to deliver to customers so negative quantities need to be factored out.
@@ -198,7 +194,7 @@ online_store %>%
   ggplot(aes(InvoiceDate, Quantity)) +
   geom_point() +
   geom_smooth(method = "lm", se= FALSE) +
-   labs(y = "Units Sold") +
+  labs(y = "Units Sold") +
   scale_x_date(date_labels = "%b %y", date_breaks  = "1 month") +
   ggtitle("Sales Trend in Units") +
   theme(
@@ -254,7 +250,7 @@ ab_hl<- online_store %>%
            cumulative_ord <= 0.8 ~ "H",
            TRUE ~"L")) %>%
   select(-Revenue, -Orders, -proportions_rev, -cumulative_rev, -proportions_ord, -cumulative_ord)
-  
+
 
 ```
 
@@ -284,7 +280,7 @@ online_store %>%
   ggplot(aes(InvoiceDate, Quantity, colour = ab_hl)) +
   geom_line() +
   facet_grid(ab_hl~., scales = "free_y")+
-   labs(y = "Units Sold") +
+  labs(y = "Units Sold") +
   scale_x_date(date_labels = "%b %y", date_breaks  = "1 month") +
   ggtitle("Units Sold Online by Product Group") +
   theme(
@@ -325,8 +321,8 @@ online_store %>% glimpse()
 # Time Series Analysis
 
 For the following part of out this report we will be using the [tidyverts](https://tidyverts.org/) packages which consist of :
-
-[tsibble](https://tsibble.tidyverts.org/) : a data infrastructure for tidy temporal data with wrangling tools.
+  
+  [tsibble](https://tsibble.tidyverts.org/) : a data infrastructure for tidy temporal data with wrangling tools.
 [feasts](https://feasts.tidyverts.org/): a collection of tools for the analysis of time series data.
 [fable](https://fable.tidyverts.org/) :  a collection of commonly used univariate and multivariate time series forecasting models including exponential smoothing via state space models.
 
@@ -372,7 +368,7 @@ The [has_gaps()](https://www.rdocumentation.org/packages/tsibble/versions/1.1.1/
 ```{r identify_gaps, echo=FALSE}
 
 online_store_tsbl %>%
-has_gaps(.full = TRUE)
+  has_gaps(.full = TRUE)
 
 ```
 
@@ -392,7 +388,7 @@ Here we have filled any implicit gaps with the last non-blank observation in the
 
 ```{r fill gaps, echo=FALSE}
 online_store_gaps<-
-online_store_tsbl %>%
+  online_store_tsbl %>%
   group_by_key() %>%
   fill_gaps() %>%
   tidyr::fill(Quantity, .direction = "down") %>%
@@ -415,19 +411,19 @@ decomposition<- online_store_gaps %>%
   ) %>%
   components()
 
- decomposition %>% autoplot()
+decomposition %>% autoplot()
 
 ```
 
 We have used a rule to define outliers as those that are greater than 3 interquartile ranges (IQRs) from the central 50% of the data, which would make only 1 in 500,000 normally distributed observations to be outliers. Below table show the output of this:
-
-```{r set_outlier_limits, echo=FALSE}
+  
+  ```{r set_outlier_limits, echo=FALSE}
 
 outliers <-
   decomposition %>%
   filter(
     remainder < quantile(remainder, 0.25) - 3* IQR(remainder) |
-    remainder > quantile(remainder, 0.75) + 3* IQR(remainder)
+      remainder > quantile(remainder, 0.75) + 3* IQR(remainder)
   )
 
 outliers
@@ -512,12 +508,12 @@ online_store_clean %>%
 
 A time series decomposition can be used to measure the strength of trend and seasonality in a time series. Recall that the decomposition is written as 
 $$y_t = T_t + S_{t} + R_t$$ where $T_{t}$ is the smoothed trend component, $S_{t}t$  is the  seasonal component and $R_{t}$  is a remainder component. For strongly trended data, the seasonally adjusted data should have much more variation than the remainder component. But for data with little or no trend, the two variances should be approximately the same. So we define the strength of trend as: 
-$$F_T = \max\left(0, 1 - \frac{\text{Var}(R_t)}{\text{Var}(T_t+R_t)}\right)$$
-This will give a measure of the strength of the trend between 0 and 1
+  $$F_T = \max\left(0, 1 - \frac{\text{Var}(R_t)}{\text{Var}(T_t+R_t)}\right)$$
+  This will give a measure of the strength of the trend between 0 and 1
 
 The strength of the seasonality is defined simirarly but with respect to the detrended data tather than the seasonally adjusted data:
-$$F_S = \max\left(0, 1 - \frac{\text{Var}(R_t)}{\text{Var}(S_{t}+R_t)}\right)$$
-A series with seasonal strength FS close to 0 exhibits almost no seasonality, while a series with strong seasonality will have $F_{S}$ close to 1.
+  $$F_S = \max\left(0, 1 - \frac{\text{Var}(R_t)}{\text{Var}(S_{t}+R_t)}\right)$$
+  A series with seasonal strength FS close to 0 exhibits almost no seasonality, while a series with strong seasonality will have $F_{S}$ close to 1.
 
 We can use the feat_stl() function from the feasts function to extract those features for one or multiple time series in our tsibble. Below we see the values for the trend and seasonal and trend strength of our time series as well as the peak and trough values in the season. We can see that within a week our series tends to peak on the 3rd day (Wednesday) and falls on the 6th (Saturday.)
 
@@ -578,13 +574,13 @@ online_store_test <- online_store_fit %>%
 One of the simplest forecasting techniques avaialable is the Naive method. For naïve forecasts, we simply set all forecasts to be the value of the last observation. This method is usually a good benchmark for other methods, or simply put if a more advanced method cannot beat the Naive's accuracy score with we might as well use the Naive one as our best estimation for demand.
 
 The simple Naive can be written as :
-
-$$\hat{y}_{T+h|T} = y_{T}$$
-
-In our case because our data have a seasonality, we will use a variation fo the Naive method called Seasonal Naive. In this case, we set each forecast to be equal to the last observed value from the same season. It can be written as :
-$$\hat{y}_{T+h|T} = y_{T+h-m(k+1)},$$
-
-where $m$ = the seasonal period and $k$ is the integer part of $(h-1)/m$ the number of completed points in the period prior to time $(h-1)/m$.
+  
+  $$\hat{y}_{T+h|T} = y_{T}$$
+  
+  In our case because our data have a seasonality, we will use a variation fo the Naive method called Seasonal Naive. In this case, we set each forecast to be equal to the last observed value from the same season. It can be written as :
+  $$\hat{y}_{T+h|T} = y_{T+h-m(k+1)},$$
+  
+  where $m$ = the seasonal period and $k$ is the integer part of $(h-1)/m$ the number of completed points in the period prior to time $(h-1)/m$.
 
 ```{r SNAIVE, include=FALSE}
 
@@ -653,18 +649,18 @@ Exponential smoothing was proposed in the late 1950s (Brown, 1959; Holt, 1957; W
 
 #### Simple Exponential Smoothing
 
- This method is suitable for forecasting data with no clear trend or seasonal pattern. Forecasts are calculated using weighted averages, where the weights decrease exponentially as observations come from further in the past — the smallest weights are associated with the oldest observations: 
- 
+This method is suitable for forecasting data with no clear trend or seasonal pattern. Forecasts are calculated using weighted averages, where the weights decrease exponentially as observations come from further in the past — the smallest weights are associated with the oldest observations: 
+  
   $$\hat{y}_{T+1|T} = \alpha y_T + \alpha(1-\alpha) y_{T-1} + \alpha(1-\alpha)^2 y_{T-2}+ \cdots$$
   
-where 0≤α≤1 is the smoothing parameter. The one-step-ahead forecast for time T+1 is a weighted average of all of the observations in the series y1,…,yT. The rate at which the weights decrease is controlled by the parameter α. For any α between 0 and 1, the weights attached to the observations decrease exponentially as we go back in time, hence the name “exponential smoothing”.
+  where 0≤α≤1 is the smoothing parameter. The one-step-ahead forecast for time T+1 is a weighted average of all of the observations in the series y1,…,yT. The rate at which the weights decrease is controlled by the parameter α. For any α between 0 and 1, the weights attached to the observations decrease exponentially as we go back in time, hence the name “exponential smoothing”.
 
 The weighted average form of the equation can be written as:
+  
+  $$\hat{y}_{T+1|T} = \alpha y_T + (1-\alpha) \hat{y}_{T|T-1},$$
+  
+  where 0≤α≤1 is the smoothing parameter.
 
-$$\hat{y}_{T+1|T} = \alpha y_T + (1-\alpha) \hat{y}_{T|T-1},$$
-
- where 0≤α≤1 is the smoothing parameter.
- 
 We fit a Simple Exponential Smoothing to our train data using the ETL function from fable package and by passing the parameters error("A") + trend("N") + season("N"). "A" stands for additive, meaning the residual errors get added as the algorithm progresses over the time series, and "N" simply cancels out the algorithms fucntion to search for trend and seasonality in the data.
 ```{r Simple ES, include=FALSE}
 # Exponential Smoothing ----
@@ -698,14 +694,14 @@ fit_ses %>% refit(online_store_test) %>%
 #### Holt's Exponential Smoothing
 
 Holt (1957) extended simple exponential smoothing to allow the forecasting of data with a trend. This method involves a forecast equation and two smoothing equations (one for the level and one for the trend):
-
-$$\begin{align*}
-  \text{Forecast equation}&& \hat{y}_{t+h|t} &= \ell_{t} + hb_{t} \\
-  \text{Level equation}   && \ell_{t} &= \alpha y_{t} + (1 - \alpha)(\ell_{t-1} + b_{t-1})\\
-  \text{Trend equation}   && b_{t}    &= \beta^*(\ell_{t} - \ell_{t-1}) + (1 -\beta^*)b_{t-1},
+  
+  $$\begin{align*}
+\text{Forecast equation}&& \hat{y}_{t+h|t} &= \ell_{t} + hb_{t} \\
+\text{Level equation}   && \ell_{t} &= \alpha y_{t} + (1 - \alpha)(\ell_{t-1} + b_{t-1})\\
+\text{Trend equation}   && b_{t}    &= \beta^*(\ell_{t} - \ell_{t-1}) + (1 -\beta^*)b_{t-1},
 \end{align*}$$
-
-where ℓt denotes an estimate of the level of the series at time t, bt denotes an estimate of the trend (slope) of the series at time t, α is the smoothing parameter for the level, 0≤α≤1, and β∗ is the smoothing parameter for the trend, 0≤β∗≤1.
+  
+  where ℓt denotes an estimate of the level of the series at time t, bt denotes an estimate of the trend (slope) of the series at time t, α is the smoothing parameter for the level, 0≤α≤1, and β∗ is the smoothing parameter for the trend, 0≤β∗≤1.
 
 ```{r holts ES, include=FALSE}
 # Exponential Smoothing ----
@@ -747,37 +743,37 @@ Holt (1957) and Winters (1960) extended Holt’s method to capture seasonality. 
 There are two variations to this method that differ in the nature of the seasonal component. The additive method is preferred when the seasonal variations are roughly constant through the series, while the multiplicative method is preferred when the seasonal variations are changing proportional to the level of the series. 
 
 The component form for the additive method is:
-
-$$\begin{align*}
-  \hat{y}_{t+h|t} &= \ell_{t} + hb_{t} + s_{t+h-m(k+1)} \\
-  \ell_{t} &= \alpha(y_{t} - s_{t-m}) + (1 - \alpha)(\ell_{t-1} + b_{t-1})\\
-  b_{t} &= \beta^*(\ell_{t} - \ell_{t-1}) + (1 - \beta^*)b_{t-1}\\
-  s_{t} &= \gamma (y_{t}-\ell_{t-1}-b_{t-1}) + (1-\gamma)s_{t-m},
+  
+  $$\begin{align*}
+\hat{y}_{t+h|t} &= \ell_{t} + hb_{t} + s_{t+h-m(k+1)} \\
+\ell_{t} &= \alpha(y_{t} - s_{t-m}) + (1 - \alpha)(\ell_{t-1} + b_{t-1})\\
+b_{t} &= \beta^*(\ell_{t} - \ell_{t-1}) + (1 - \beta^*)b_{t-1}\\
+s_{t} &= \gamma (y_{t}-\ell_{t-1}-b_{t-1}) + (1-\gamma)s_{t-m},
 \end{align*}$$
-
-where k is the integer part of (h−1)/m, which ensures that the estimates of the seasonal indices used for forecasting come from the final year of the sample. The level equation shows a weighted average between the seasonally adjusted observation (yt−st−m) and the non-seasonal forecast (ℓt−1+bt−1) for time t.
+  
+  where k is the integer part of (h−1)/m, which ensures that the estimates of the seasonal indices used for forecasting come from the final year of the sample. The level equation shows a weighted average between the seasonally adjusted observation (yt−st−m) and the non-seasonal forecast (ℓt−1+bt−1) for time t.
 
 
 The component form for the multiplicative method is: 
-
-$$\begin{align*}
-  \hat{y}_{t+h|t} &= (\ell_{t} + hb_{t})s_{t+h-m(k+1)} \\
-  \ell_{t} &= \alpha \frac{y_{t}}{s_{t-m}} + (1 - \alpha)(\ell_{t-1} + b_{t-1})\\
-  b_{t} &= \beta^*(\ell_{t}-\ell_{t-1}) + (1 - \beta^*)b_{t-1}                \\
-  s_{t} &= \gamma \frac{y_{t}}{(\ell_{t-1} + b_{t-1})} + (1 - \gamma)s_{t-m}.
+  
+  $$\begin{align*}
+\hat{y}_{t+h|t} &= (\ell_{t} + hb_{t})s_{t+h-m(k+1)} \\
+\ell_{t} &= \alpha \frac{y_{t}}{s_{t-m}} + (1 - \alpha)(\ell_{t-1} + b_{t-1})\\
+b_{t} &= \beta^*(\ell_{t}-\ell_{t-1}) + (1 - \beta^*)b_{t-1}                \\
+s_{t} &= \gamma \frac{y_{t}}{(\ell_{t-1} + b_{t-1})} + (1 - \gamma)s_{t-m}.
 \end{align*}$$
-
-A method that often provides accurate and robust forecasts for seasonal data is the Holt-Winters method with a damped trend and multiplicative seasonality: 
-
-$$\begin{align*}
-  \hat{y}_{t+h|t} &= \left[\ell_{t} + (\phi+\phi^2 + \dots + \phi^{h})b_{t}\right]s_{t+h-m(k+1)} \\
-  \ell_{t} &= \alpha(y_{t} / s_{t-m}) + (1 - \alpha)(\ell_{t-1} + \phi b_{t-1})\\
-  b_{t} &= \beta^*(\ell_{t} - \ell_{t-1}) + (1 - \beta^*)\phi b_{t-1}             \\
-  s_{t} &= \gamma \frac{y_{t}}{(\ell_{t-1} + \phi b_{t-1})} + (1 - \gamma)s_{t-m}.
+  
+  A method that often provides accurate and robust forecasts for seasonal data is the Holt-Winters method with a damped trend and multiplicative seasonality: 
+  
+  $$\begin{align*}
+\hat{y}_{t+h|t} &= \left[\ell_{t} + (\phi+\phi^2 + \dots + \phi^{h})b_{t}\right]s_{t+h-m(k+1)} \\
+\ell_{t} &= \alpha(y_{t} / s_{t-m}) + (1 - \alpha)(\ell_{t-1} + \phi b_{t-1})\\
+b_{t} &= \beta^*(\ell_{t} - \ell_{t-1}) + (1 - \beta^*)\phi b_{t-1}             \\
+s_{t} &= \gamma \frac{y_{t}}{(\ell_{t-1} + \phi b_{t-1})} + (1 - \gamma)s_{t-m}.
 \end{align*}$$
-
-
-Using the model function in fable we can fit all three versions of Exponential Smoothing on our train data simultaneously. We differentiate between the method by passing different arguments within the corresponding functions. For example for the multiplicative method we can define error("M") + trend("A") + season("M").
+  
+  
+  Using the model function in fable we can fit all three versions of Exponential Smoothing on our train data simultaneously. We differentiate between the method by passing different arguments within the corresponding functions. For example for the multiplicative method we can define error("M") + trend("A") + season("M").
 ```{r hwes, include=FALSE}
 # Exponential Smoothing ----
 
@@ -947,12 +943,3 @@ online_store_fit %>%
   labs(title = "AH Product sales: Bootstrapped Forecast",
        y="Units Sold")
 ```
-
-
-
-
-
-
-
-
-
